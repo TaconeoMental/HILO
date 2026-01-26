@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, jsonify, redirect, url_for
 from flask_login import login_required, current_user
 
 from config import Config
+from extensions import limiter
 from routes.auth import must_change_password_redirect
 
 pages_bp = Blueprint("pages", __name__)
@@ -31,6 +32,7 @@ def record_page():
 
 
 @pages_bp.route("/health")
+@limiter.exempt
 def health():
     return jsonify({"ok": True})
 
