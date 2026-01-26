@@ -27,8 +27,8 @@ def is_valid_project_id(project_id):
     except ValueError:
         return False
 
-    data_dir = os.path.realpath(Config.DATA_DIR)
-    project_dir = os.path.realpath(os.path.join(Config.DATA_DIR, project_id))
+    data_dir = os.path.realpath(os.path.join(Config.DATA_DIR, "projects"))
+    project_dir = os.path.realpath(os.path.join(data_dir, project_id))
 
     if not project_dir.startswith(data_dir + os.sep):
         return False
@@ -90,7 +90,7 @@ def create_project(
         raise ValueError("user_id inválido")
 
     project_id = str(uuid.uuid4())
-    project_dir = os.path.join(Config.DATA_DIR, project_id)
+    project_dir = os.path.join(Config.DATA_DIR, "projects", project_id)
     audio_chunks_dir = os.path.join(project_dir, "audio_chunks")
     wav_chunks_dir = os.path.join(project_dir, "wav_chunks")
     photos_dir = os.path.join(project_dir, "photos")
@@ -141,7 +141,7 @@ def create_project(
 
 
 def get_project_dir(project_id):
-    return os.path.join(Config.DATA_DIR, project_id)
+    return os.path.join(Config.DATA_DIR, "projects", project_id)
 
 
 def get_state_path(project_id):
@@ -349,25 +349,6 @@ def delete_project(project_id):
         finally:
             Session.remove()
 
-    jobs_dir = os.path.join(Config.DATA_DIR, "jobs")
-    if os.path.exists(jobs_dir):
-        for job_name in os.listdir(jobs_dir):
-            job_dir = os.path.join(jobs_dir, job_name)
-            status_path = os.path.join(job_dir, "status.json")
-
-            if not os.path.exists(status_path):
-                continue
-
-            try:
-                with open(status_path, "r", encoding="utf-8") as f:
-                    status = json.load(f)
-
-                if status.get("project_id") == project_id:
-                    shutil.rmtree(job_dir)
-                    log.info(f"Job eliminado: {job_name}")
-            except Exception as e:
-                log.warning(f"No se pudo verificar/eliminar job {job_name}: {e}")
-
     shutil.rmtree(get_project_dir(project_id))
     log.info(f"Proyecto eliminado: {project_id}")
     return True
@@ -395,7 +376,7 @@ def list_projects(user_id):
         project_id = str(record.id)
         state = load_state(project_id) or {}
 
-        project_dir = os.path.join(Config.DATA_DIR, project_id)
+        project_dir = get_project_dir(project_id)
         photos_dir = os.path.join(project_dir, "photos")
         photo_count = 0
         if os.path.exists(photos_dir):
@@ -435,27 +416,3 @@ def list_projects(user_id):
         })
 
     return projects
-
-
-def get_project_job(project_id):
-    jobs_dir = os.path.join(Config.DATA_DIR, "jobs")
-    if not os.path.exists(jobs_dir):
-        return None
-
-    for job_name in os.listdir(jobs_dir):
-        job_dir = os.path.join(jobs_dir, job_name)
-        status_path = os.path.join(job_dir, "status.json")
-
-        if not os.path.exists(status_path):
-            continue
-
-        try:
-            with open(status_path, "r", encoding="utf-8") as f:
-                status = json.load(f)
-
-            if status.get("project_id") == project_id:
-                return status
-        except Exception:
-            continue
-
-    return None

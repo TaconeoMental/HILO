@@ -8,7 +8,7 @@ _lock = threading.Lock()
 
 
 def get_timeline_path(project_id):
-    return os.path.join(Config.DATA_DIR, project_id, "timeline.json")
+    return os.path.join(Config.DATA_DIR, "projects", project_id, "timeline.json")
 
 
 def load_timeline(project_id):
