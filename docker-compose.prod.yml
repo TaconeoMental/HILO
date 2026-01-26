@@ -5,6 +5,8 @@ services:
       - FLASK_ENV=production
     env_file:
       - .env
+    volumes:
+      - ./data:/app/data
     command: gunicorn --bind 0.0.0.0:8000 --workers 4 --threads 2 --timeout 120 --access-logfile - --error-logfile - app:app
     depends_on:
       db:
@@ -53,6 +55,8 @@ services:
       - FLASK_ENV=production
     env_file:
       - .env
+    volumes:
+      - ./data:/app/data
     command: python worker.py
     depends_on:
       db:
