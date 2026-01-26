@@ -467,12 +467,27 @@ def delete_user(user_id):
         if not user:
             return jsonify({"ok": False, "error": "Usuario no encontrado"}), 404
 
+        project_ids = [str(project.id) for project in user.projects.all()]
+
+        for project_id in project_ids:
+            try:
+                project_store.delete_project(project_id)
+            except Exception as e:
+                log.warning(
+                    f"No se pudo eliminar proyecto {project_id}: {e}"
+                )
+
+        db.query(UserSession).filter_by(user_id=user.id).delete()
+
         log_audit(
             db,
             action="admin_delete_user",
             actor_user_id=current_user.id,
             target_user_id=user.id,
-            details={"username": user.username},
+            details={
+                "username": user.username,
+                "deleted_projects": project_ids
+            },
             ip=_client_ip(),
             user_agent=request.user_agent.string
         )

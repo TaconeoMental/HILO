@@ -63,6 +63,16 @@ export function initProjectsPage() {
     return label;
   }
 
+  function formatDuration(totalSeconds) {
+    if (totalSeconds === null || totalSeconds === undefined) return "-";
+    const seconds = Math.max(0, Number(totalSeconds));
+    if (Number.isNaN(seconds)) return "-";
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  }
+
   let pollingInterval = null;
 
   function startPolling() {
@@ -166,6 +176,7 @@ export function initProjectsPage() {
           const statusClass = getStatusClass(s);
           const retentionTag = getRetentionTag(s);
           const created = formatDate(s.created_at);
+          const duration = formatDuration(s.recording_duration_seconds);
           const projectName = s.project_name || "Sin título";
           return `
                     <div class="project-card" data-id="${s.project_id}" data-project-id="${s.project_id}" data-job-status="${s.job_status || ""}">
@@ -186,20 +197,12 @@ export function initProjectsPage() {
                                 ${created}
                             </span>
                             <span class="project-meta-item">
-                                <i class="bi bi-hourglass-split"></i>
-                                ${formatExpires(s.expires_at)}
-                            </span>
-                            <span class="project-meta-item">
-                                <i class="bi bi-mic"></i>
-                                ${s.chunk_count} chunks
+                                <i class="bi bi-clock"></i>
+                                ${duration}
                             </span>
                             <span class="project-meta-item">
                                 <i class="bi bi-camera"></i>
                                 ${s.photo_count} fotos
-                            </span>
-                            <span class="project-meta-item">
-                                <i class="bi bi-file-text"></i>
-                                ${s.transcript_length} caracteres
                             </span>
                         </div>
                         <div class="project-actions">

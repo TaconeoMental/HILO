@@ -430,7 +430,8 @@ def list_projects(user_id):
             "stylize_errors": record.stylize_errors or 0,
             "chunk_count": len(state.get("chunks", [])),
             "photo_count": photo_count,
-            "transcript_length": len(state.get("transcript", ""))
+            "transcript_length": len(state.get("transcript", "")),
+            "recording_duration_seconds": state.get("recording_duration_seconds")
         })
 
     return projects

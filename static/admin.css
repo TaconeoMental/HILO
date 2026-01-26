@@ -328,7 +328,7 @@
 .dataTables_wrapper .dataTables_length select,
 .dataTables_wrapper .dataTables_filter input {
     background: rgba(255, 255, 255, 0.03);
-    border: none;
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 8px;
     color: var(--text-primary);
     padding: 6px 10px;
@@ -373,9 +373,9 @@
 }
 
 .dataTables_wrapper .dataTables_paginate .paginate_button.current {
-    background: transparent !important;
-    border-color: transparent !important;
-    color: var(--text-primary) !important;
+    background: rgba(246, 7, 97, 0.14) !important;
+    border-color: rgba(246, 7, 97, 0.35) !important;
+    color: var(--accent) !important;
 }
 
 .admin-card .metric,

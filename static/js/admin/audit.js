@@ -68,7 +68,7 @@ export function initAdminAudit() {
 
     auditBody.innerHTML = rowsHtml;
     auditTable = $("#audit-table").DataTable({
-      pageLength: 15,
+      pageLength: 10,
       order: [[0, "desc"]],
       language: {
         search: "Buscar",

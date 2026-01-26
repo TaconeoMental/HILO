@@ -59,10 +59,18 @@ class User(Base, UserMixin):
 
     # Relationships
     sessions = relationship(
-        "UserSession", back_populates="user", lazy="dynamic"
+        "UserSession",
+        back_populates="user",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+        passive_deletes=True
     )
     projects = relationship(
-        "Project", back_populates="user", lazy="dynamic"
+        "Project",
+        back_populates="user",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+        passive_deletes=True
     )
 
     def set_password(self, password):
