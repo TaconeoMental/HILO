@@ -29,7 +29,7 @@ export function useMediaStreams() {
     return newStream;
   }, [facingMode, setStreamState, stopTracks]);
 
-  const startPreview = useCallback(() => startStream({ audio: false }), [startStream]);
+  const startPreview = useCallback(() => startStream({ audio: true }), [startStream]);
   const startRecording = useCallback(() => startStream({ audio: true }), [startStream]);
 
   const stop = useCallback(() => {

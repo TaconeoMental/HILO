@@ -35,6 +35,9 @@ def process_project(project_id):
         chunks = state.get("chunks", [])
         raw_transcript = state.get("transcript", "")
 
+        t_len = len(raw_transcript)
+        log.info(f"Proyecto {project_id}: transcript {t_len} chars, {len(chunks)} chunks")
+
         project_dir = project_store.get_project_dir(project_id)
         fallback_path = os.path.join(project_dir, "transcript_raw.txt")
         with open(fallback_path, "w", encoding="utf-8") as f:

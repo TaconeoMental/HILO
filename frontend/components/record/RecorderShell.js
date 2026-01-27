@@ -41,11 +41,10 @@ export default function RecorderShell() {
     }
   }, [recorder, router]);
 
-  // Handler para cerrar modal de descartado y navegar
+  // Handler para cerrar modal de descartado (quedarse en la página para nueva grabación)
   const handleDiscardedClose = useCallback(() => {
     recorder.closeDiscardedModal();
-    router.push("/projects");
-  }, [recorder, router]);
+  }, [recorder]);
 
   // Handler para guardar desde modal de cuota alcanzada
   const handleSaveFromQuota = useCallback(async () => {

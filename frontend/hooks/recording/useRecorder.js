@@ -217,7 +217,12 @@ export function useRecorder() {
     }
     dispatch({ type: "START_REQUEST" });
     try {
-      const stream = await media.startRecording();
+      // Usar el stream existente del preview (ya incluye audio)
+      // Si no hay stream, intentar iniciarlo
+      let stream = media.getStream?.();
+      if (!stream || !stream.active) {
+        stream = await media.startPreview();
+      }
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }

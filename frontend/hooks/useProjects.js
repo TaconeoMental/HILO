@@ -12,6 +12,8 @@ export function useProjects() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
   const pollingRef = useRef(null);
+  const offsetRef = useRef(0);
+  const initializedRef = useRef(false);
 
   const load = useCallback(
     async (options = {}) => {
@@ -19,7 +21,7 @@ export function useProjects() {
       const replace = options.replace === true;
       const silent = options.silent === true;
       const nextLimit = options.limit ?? DEFAULT_LIMIT;
-      const nextOffset = reset ? 0 : offset;
+      const nextOffset = reset ? 0 : offsetRef.current;
       const nextQuery = options.query ?? query;
       const nextStatus = options.status ?? status;
       if (!silent) setLoading(true);
@@ -44,13 +46,23 @@ export function useProjects() {
         } else {
           setItems((prev) => [...prev, ...(data.projects || [])]);
         }
-        setOffset(nextOffset + nextLimit);
+        const newOffset = nextOffset + nextLimit;
+        offsetRef.current = newOffset;
+        setOffset(newOffset);
       } finally {
         if (!silent) setLoading(false);
       }
     },
-    [offset, query, status]
+    [query, status]
   );
+
+  // Carga inicial - solo una vez al montar
+  useEffect(() => {
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      load({ reset: true });
+    }
+  }, [load]);
 
   useEffect(() => {
     const hasInProgress = items.some((project) =>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import ProjectCard from "./ProjectCard";
 import ProjectsFilters from "./ProjectsFilters";
 import { useProjects } from "@/hooks/useProjects";
@@ -10,10 +10,6 @@ export default function ProjectsList() {
   const { items, total, limit, loading, load, applyFilters } = useProjects();
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-
-  useEffect(() => {
-    load({ reset: true });
-  }, [load]);
 
   const canLoadMore = items.length < total;
 

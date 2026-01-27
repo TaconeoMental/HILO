@@ -18,9 +18,10 @@ export function useRecorderEngine({
   const recorderRef = useRef(null);
   const projectIdRef = useRef(null);
   const chunkIndexRef = useRef(0);
-  const collectedChunksRef = useRef([]);
   const isRecordingRef = useRef(false);
   const quotaExceededRef = useRef(false);
+  const intervalRef = useRef(null);
+  const chunkTimeoutRef = useRef(null);
 
   const findMimeType = useCallback(() => {
     for (const type of MIME_TYPES) {
@@ -76,22 +77,63 @@ export function useRecorderEngine({
     [onChunkText, onQuotaExceeded]
   );
 
-  const flushCollectedChunks = useCallback(async () => {
-    const chunks = collectedChunksRef.current;
-    if (chunks.length === 0) return;
+  // Graba un chunk completo con su propio MediaRecorder
+  const recordOneChunk = useCallback(
+    (index, projectId) => {
+      if (!isRecordingRef.current || quotaExceededRef.current) return;
 
-    const mimeType = findMimeType() || "audio/webm";
-    const blob = new Blob(chunks, { type: mimeType });
-    collectedChunksRef.current = [];
+      const audioStream = getAudioStream?.();
+      if (!audioStream || !audioStream.active) {
+        console.warn("recordOneChunk: audio stream not active");
+        return;
+      }
 
-    if (blob.size < 500) return;
+      const audioTracks = audioStream.getAudioTracks();
+      if (audioTracks.length === 0 || audioTracks.some((t) => t.readyState !== "live")) {
+        console.warn("recordOneChunk: audio tracks not live");
+        return;
+      }
 
-    const index = chunkIndexRef.current;
-    chunkIndexRef.current += 1;
-    onChunkIndex?.(chunkIndexRef.current);
+      const mimeType = findMimeType();
+      if (!mimeType) {
+        console.warn("recordOneChunk: no supported mime type");
+        return;
+      }
 
-    await sendChunk(blob, index, projectIdRef.current);
-  }, [findMimeType, sendChunk, onChunkIndex]);
+      const chunks = [];
+      const recorder = new MediaRecorder(audioStream, {
+        mimeType,
+        audioBitsPerSecond: 64000
+      });
+      recorderRef.current = recorder;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunks.push(event.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        if (chunks.length > 0) {
+          const blob = new Blob(chunks, { type: mimeType });
+          if (blob.size > 500) {
+            await sendChunk(blob, index, projectId);
+          }
+        }
+      };
+
+      recorder.start();
+      onChunkIndex?.(index + 1);
+
+      // Detener este chunk después de chunkDuration segundos
+      chunkTimeoutRef.current = setTimeout(() => {
+        if (recorder.state === "recording") {
+          recorder.stop();
+        }
+      }, chunkDuration * 1000);
+    },
+    [getAudioStream, chunkDuration, findMimeType, sendChunk, onChunkIndex]
+  );
 
   const startChunkCycle = useCallback(
     (startIndex = 0, projectId) => {
@@ -114,73 +156,57 @@ export function useRecorderEngine({
 
       projectIdRef.current = projectId;
       chunkIndexRef.current = startIndex;
-      collectedChunksRef.current = [];
       isRecordingRef.current = true;
       quotaExceededRef.current = false;
 
-      const recorder = new MediaRecorder(audioStream, {
-        mimeType,
-        audioBitsPerSecond: 64000
-      });
-      recorderRef.current = recorder;
-
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          collectedChunksRef.current.push(event.data);
-        }
-      };
-
-      recorder.onstop = () => {
-        isRecordingRef.current = false;
-      };
-
-      // Usar timeslice para obtener datos continuamente
-      const timesliceMs = chunkDuration * 1000;
-      recorder.start(timesliceMs);
-
-      // Enviar chunks cada chunkDuration segundos
-      const intervalId = setInterval(async () => {
+      // Función para iniciar cada chunk
+      const tick = () => {
         if (!isRecordingRef.current || quotaExceededRef.current) {
-          clearInterval(intervalId);
           return;
         }
-        await flushCollectedChunks();
-      }, timesliceMs);
+        const currentIndex = chunkIndexRef.current;
+        chunkIndexRef.current += 1;
+        recordOneChunk(currentIndex, projectId);
+      };
 
-      // Guardar referencia al interval para poder limpiarlo
-      recorder._chunkIntervalId = intervalId;
+      // Primer chunk inmediatamente
+      tick();
 
-      onChunkIndex?.(startIndex);
+      // Siguientes chunks cada chunkDuration segundos
+      intervalRef.current = setInterval(tick, chunkDuration * 1000);
     },
-    [getAudioStream, chunkDuration, findMimeType, flushCollectedChunks, onChunkIndex]
+    [getAudioStream, chunkDuration, findMimeType, recordOneChunk]
   );
 
   const stopChunkCycle = useCallback(async (flush = true) => {
     isRecordingRef.current = false;
 
-    const recorder = recorderRef.current;
-    if (recorder) {
-      if (recorder._chunkIntervalId) {
-        clearInterval(recorder._chunkIntervalId);
-        recorder._chunkIntervalId = null;
-      }
+    // Limpiar interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
 
-      if (recorder.state === "recording") {
+    // Limpiar timeout del chunk actual
+    if (chunkTimeoutRef.current) {
+      clearTimeout(chunkTimeoutRef.current);
+      chunkTimeoutRef.current = null;
+    }
+
+    // Detener el recorder actual si está grabando
+    const recorder = recorderRef.current;
+    if (recorder && recorder.state === "recording") {
+      if (flush) {
         // Solicitar datos pendientes antes de detener
         try {
           recorder.requestData();
         } catch (err) {
           // ignore
         }
-        recorder.stop();
       }
-      recorderRef.current = null;
+      recorder.stop();
     }
-
-    // Enviar el chunk final si hay datos pendientes
-    if (flush && !quotaExceededRef.current) {
-      await flushCollectedChunks();
-    }
+    recorderRef.current = null;
 
     // Esperar a que todos los chunks pendientes se envíen
     return new Promise((resolve) => {
@@ -191,9 +217,10 @@ export function useRecorderEngine({
           setTimeout(check, 100);
         }
       };
-      check();
+      // Dar tiempo para que el onstop se procese
+      setTimeout(check, 200);
     });
-  }, [flushCollectedChunks]);
+  }, []);
 
   const isQuotaExceeded = useCallback(() => quotaExceededRef.current, []);
 
