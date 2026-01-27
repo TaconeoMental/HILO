@@ -1,12 +1,22 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
-export function usePhotos({ projectId, videoRef, stylize }) {
+export function usePhotos({ projectId, videoRef, stylize, onQuotaExceeded }) {
   const [photos, setPhotos] = useState([]);
   const [photoDelay, setPhotoDelay] = useState(0);
   const [isCapturing, setIsCapturing] = useState(false);
+  const quotaExceededRef = useRef(false);
+
+  const setQuotaExceeded = useCallback((exceeded) => {
+    quotaExceededRef.current = exceeded;
+  }, []);
 
   const capturePhoto = useCallback(async () => {
     if (!projectId || !videoRef.current || isCapturing) return;
+    if (quotaExceededRef.current) {
+      console.warn("capturePhoto: quota exceeded, blocking");
+      return;
+    }
+
     setIsCapturing(true);
     try {
       const video = videoRef.current;
@@ -32,6 +42,14 @@ export function usePhotos({ projectId, videoRef, stylize }) {
         })
       });
       const data = await res.json();
+
+      // Detectar cuota agotada
+      if (res.status === 403 && data.error === "Tiempo de grabación agotado") {
+        quotaExceededRef.current = true;
+        onQuotaExceeded?.();
+        return;
+      }
+
       if (!data.ok) {
         throw new Error(data.error || "No se pudo guardar la foto");
       }
@@ -42,9 +60,10 @@ export function usePhotos({ projectId, videoRef, stylize }) {
     } finally {
       setIsCapturing(false);
     }
-  }, [projectId, videoRef, stylize, isCapturing]);
+  }, [projectId, videoRef, stylize, isCapturing, onQuotaExceeded]);
 
   const captureWithDelay = useCallback(() => {
+    if (quotaExceededRef.current) return;
     if (photoDelay <= 0) {
       capturePhoto();
       return;
@@ -60,6 +79,7 @@ export function usePhotos({ projectId, videoRef, stylize }) {
     photoDelay,
     setPhotoDelay,
     capturePhoto: captureWithDelay,
-    isCapturing
+    isCapturing,
+    setQuotaExceeded
   };
 }

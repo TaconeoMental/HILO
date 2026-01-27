@@ -1,62 +1,67 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 export function useMediaStreams() {
   const [stream, setStream] = useState(null);
   const [facingMode, setFacingMode] = useState("user");
+  const streamRef = useRef(null);
 
-  const start = useCallback(async () => {
+  const setStreamState = useCallback((nextStream) => {
+    streamRef.current = nextStream;
+    setStream(nextStream);
+  }, []);
+
+  const stopTracks = useCallback((targetStream) => {
+    if (targetStream) {
+      targetStream.getTracks().forEach((track) => track.stop());
+    }
+  }, []);
+
+  const startStream = useCallback(async ({ audio = true } = {}) => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       throw new Error("Cámara no disponible.");
     }
+    stopTracks(streamRef.current);
     const newStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode },
-      audio: true
+      audio
     });
-    setStream(newStream);
+    setStreamState(newStream);
     return newStream;
-  }, [facingMode]);
+  }, [facingMode, setStreamState, stopTracks]);
+
+  const startPreview = useCallback(() => startStream({ audio: false }), [startStream]);
+  const startRecording = useCallback(() => startStream({ audio: true }), [startStream]);
 
   const stop = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-    }
-    setStream(null);
-  }, [stream]);
+    stopTracks(streamRef.current);
+    setStreamState(null);
+  }, [setStreamState, stopTracks]);
 
   const switchCamera = useCallback(async () => {
+    const currentStream = streamRef.current;
+    if (!currentStream) return;
+
+    const hasAudio = currentStream.getAudioTracks().length > 0;
     const nextFacing = facingMode === "user" ? "environment" : "user";
+
+    stopTracks(currentStream);
     setFacingMode(nextFacing);
-    if (!stream) {
-      return;
-    }
-    try {
-      const currentVideoTrack = stream.getVideoTracks()[0];
-      if (currentVideoTrack) {
-        currentVideoTrack.stop();
-      }
-      const newStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: nextFacing },
-        audio: false
-      });
-      const newVideoTrack = newStream.getVideoTracks()[0];
-      if (currentVideoTrack) {
-        stream.removeTrack(currentVideoTrack);
-      }
-      if (newVideoTrack) {
-        stream.addTrack(newVideoTrack);
-      }
-      setStream(stream);
-    } catch (err) {
-      setFacingMode((prev) => (prev === "user" ? "environment" : "user"));
-      throw err;
-    }
-  }, [facingMode, stream]);
+
+    const newStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: nextFacing },
+      audio: hasAudio
+    });
+    setStreamState(newStream);
+    return newStream;
+  }, [facingMode, setStreamState, stopTracks]);
 
   return {
     stream,
     facingMode,
     setFacingMode,
-    start,
+    startPreview,
+    startRecording,
+    getStream: () => streamRef.current,
     stop,
     switchCamera
   };

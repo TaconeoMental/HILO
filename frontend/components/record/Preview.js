@@ -2,10 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CameraIcon, ArrowPathIcon, Cog6ToothIcon } from "@heroicons/react/24/solid";
+import VideoCanvas from "./VideoCanvas";
 
 export default function Preview({
   videoRef,
   canvasRef,
+  stream,
+  facingMode,
   showPreview,
   canvasReady,
   mirrored,
@@ -39,20 +42,19 @@ export default function Preview({
   return (
     <div className="relative overflow-hidden rounded-3xl border border-bg-surface-light bg-black">
       <div className="aspect-video w-full bg-black" aria-hidden={!showPreview}>
-        <video
-          ref={videoRef}
-          className={`absolute inset-0 h-full w-full object-contain ${mirrored ? "-scale-x-100" : ""} ${showPreview ? "block" : "hidden"}`}
-          autoPlay
-          muted
-          playsInline
-        />
-        <canvas
-          ref={canvasRef}
-          className={`absolute inset-0 h-full w-full ${showPreview && canvasReady ? "block" : "hidden"}`}
-        />
-        {!showPreview ? (
+        {showPreview ? (
+          <VideoCanvas
+            stream={stream}
+            facingMode={facingMode}
+            orientation="portrait"
+            fullScreen={false}
+            className="h-full w-full"
+            videoRef={videoRef}
+            canvasRef={canvasRef}
+          />
+        ) : (
           <div className="absolute inset-0 bg-black" />
-        ) : null}
+        )}
       </div>
 
       <button

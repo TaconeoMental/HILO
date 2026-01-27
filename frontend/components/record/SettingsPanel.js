@@ -1,6 +1,6 @@
 "use client";
 
-import { ClockIcon, SparklesIcon, XMarkIcon } from "@heroicons/react/24/solid";
+import { ClockIcon, SparklesIcon, UserIcon, XMarkIcon } from "@heroicons/react/24/solid";
 
 export default function SettingsPanel({
   open,
@@ -9,7 +9,10 @@ export default function SettingsPanel({
   onDelayPlus,
   stylize,
   onStylizeToggle,
-  onClose
+  onClose,
+  participantName,
+  onParticipantNameChange,
+  highlightName
 }) {
   if (!open) return null;
 
@@ -36,6 +39,20 @@ export default function SettingsPanel({
           </button>
         </div>
         <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <UserIcon className="h-5 w-5 text-text-secondary" />
+            <input
+              value={participantName || ""}
+              onChange={(e) => onParticipantNameChange?.(e.target.value)}
+              placeholder="Nombre"
+              maxLength={20}
+              className={`flex-1 rounded-full border px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none transition-colors ${
+                highlightName
+                  ? "bg-white/30 border-white"
+                  : "bg-bg-surface-light border-bg-surface-light"
+              }`}
+            />
+          </div>
           <div className="flex items-center gap-3">
             <ClockIcon className="h-5 w-5 text-text-secondary" />
             <button

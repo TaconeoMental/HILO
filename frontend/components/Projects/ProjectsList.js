@@ -39,7 +39,7 @@ export default function ProjectsList() {
           <h1 className="text-2xl font-semibold text-text-primary">Mis Proyectos</h1>
           <a
             href="/record"
-            className="rounded-full border border-accent bg-accent px-4 py-2 text-xs font-semibold text-white hover:bg-accent-light"
+            className="rounded-full border border-accent bg-accent px-4 py-2 text-xs font-semibold text-white hover:bg-accent-light md:hidden"
           >
             Nueva grabación
           </a>
