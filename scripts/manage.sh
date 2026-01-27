@@ -6,7 +6,7 @@ ACTION=${2:-}
 MESSAGE=${3:-}
 
 if [[ -z "$MODE" || -z "$ACTION" ]]; then
-  echo "Uso: scripts/manage.sh dev|prod migrate|build-assets|revision|admin-create|status [mensaje]"
+  echo "Uso: scripts/manage.sh dev|prod migrate|build-frontend|revision|admin-create|status [mensaje]"
   exit 1
 fi
 
@@ -21,51 +21,51 @@ else
   exit 1
 fi
 
-ensure_web_running() {
+ensure_backend_running() {
   local running
-  running=$("${COMPOSE[@]}" ps --services --filter "status=running" | grep -x "web" || true)
+  running=$("${COMPOSE[@]}" ps --services --filter "status=running" | grep -x "backend" || true)
   if [[ -z "$running" ]]; then
-    echo "El servicio web no está activo. Ejecuta deploy primero."
+    echo "El servicio backend no está activo. Ejecuta deploy primero."
     exit 1
   fi
 }
 
-ensure_assets_running() {
+ensure_frontend_running() {
   local running
-  running=$("${COMPOSE[@]}" ps --services --filter "status=running" | grep -x "assets-watcher" || true)
+  running=$("${COMPOSE[@]}" ps --services --filter "status=running" | grep -x "frontend" || true)
   if [[ -z "$running" ]]; then
-    echo "El servicio de assets no está activo. Ejecuta deploy primero."
+    echo "El servicio frontend no está activo. Ejecuta deploy primero."
     exit 1
   fi
 }
 
 case "$ACTION" in
   migrate)
-    ensure_web_running
-    "${COMPOSE[@]}" exec web alembic upgrade head
+    ensure_backend_running
+    "${COMPOSE[@]}" exec backend alembic upgrade head
     ;;
   revision)
     if [[ -z "$MESSAGE" ]]; then
       echo "Uso: scripts/manage.sh $MODE revision \"mensaje\""
       exit 1
     fi
-    ensure_web_running
-    "${COMPOSE[@]}" exec web alembic revision --autogenerate -m "$MESSAGE"
+    ensure_backend_running
+    "${COMPOSE[@]}" exec backend alembic revision --autogenerate -m "$MESSAGE"
     ;;
-  build-assets)
-    ensure_assets_running
-    "${COMPOSE[@]}" exec assets-watcher npm run build
+  build-frontend)
+    ensure_frontend_running
+    "${COMPOSE[@]}" exec frontend npm run build
     ;;
   admin-create)
-    ensure_web_running
-    "${COMPOSE[@]}" exec web flask create-admin
+    ensure_backend_running
+    "${COMPOSE[@]}" exec backend flask create-admin
     ;;
   status)
     "${COMPOSE[@]}" ps
     ;;
   *)
     echo "Acción inválida: $ACTION"
-    echo "Uso: scripts/manage.sh dev|prod migrate|revision|admin-create|status [mensaje]"
+    echo "Uso: scripts/manage.sh dev|prod migrate|build-frontend|revision|admin-create|status [mensaje]"
     exit 1
     ;;
 esac

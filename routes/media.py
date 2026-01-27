@@ -100,8 +100,7 @@ def audio_chunk():
 
     return jsonify({
         "ok": True,
-        "chunk_index": chunk_index,
-        "text": text
+        "chunk_index": chunk_index
     })
 
 

@@ -1,3 +1,4 @@
+from flask import jsonify, redirect, request
 from flask_login import LoginManager
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -16,9 +17,6 @@ Session = scoped_session(sessionmaker(bind=engine))
 
 # Login
 login_manager = LoginManager()
-login_manager.login_view = "auth.login_page"
-login_manager.login_message = "Por favor inicia sesión para acceder."
-login_manager.login_message_category = "warning"
 
 
 # Rate limiter (usa Redis en producción)
@@ -44,6 +42,12 @@ def get_db():
 def init_extensions(app):
     login_manager.init_app(app)
     limiter.init_app(app)
+
+    @login_manager.unauthorized_handler
+    def unauthorized():
+        if request.path.startswith("/api/"):
+            return jsonify({"ok": False, "error": "No autenticado"}), 401
+        return redirect("/login")
 
     @app.teardown_appcontext
     def shutdown_session(exception=None):

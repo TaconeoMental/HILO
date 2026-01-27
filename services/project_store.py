@@ -354,23 +354,25 @@ def delete_project(project_id):
     return True
 
 
-def list_projects(user_id):
+def list_projects(user_id, limit=10, offset=0, query=None, status=None):
     user_uuid = _to_uuid(user_id)
     if not user_uuid:
-        return []
+        return [], 0
 
     db = Session()
     try:
-        records = (
-            db.query(Project)
-            .filter_by(user_id=user_uuid)
-            .order_by(Project.created_at.desc())
-            .all()
-        )
+        base_query = db.query(Project).filter_by(user_id=user_uuid)
+        if status:
+            base_query = base_query.filter_by(status=status)
+        if query:
+            like_query = f"%{query}%"
+            base_query = base_query.filter(Project.title.ilike(like_query))
+        records = base_query.order_by(Project.created_at.desc()).all()
     finally:
         Session.remove()
 
     projects = []
+    query_normalized = query.lower() if query else None
 
     for record in records:
         project_id = str(record.id)
@@ -394,10 +396,19 @@ def list_projects(user_id):
         if project_status in {"queued", "processing", "done", "error"}:
             job_status = project_status
 
+        project_name = state.get("project_name", record.title or "Sin título")
+        participant_name = state.get("participant_name", "")
+
+        if query_normalized:
+            name_match = query_normalized in project_name.lower()
+            participant_match = query_normalized in participant_name.lower()
+            if not (name_match or participant_match):
+                continue
+
         projects.append({
             "project_id": project_id,
-            "project_name": state.get("project_name", record.title or "Sin título"),
-            "participant_name": state.get("participant_name", ""),
+            "project_name": project_name,
+            "participant_name": participant_name,
             "created_at": created_at,
             "expires_at": record.expires_at.isoformat() if record.expires_at else None,
             "stopped_at": state.get("stopped_at"),
@@ -414,5 +425,7 @@ def list_projects(user_id):
             "transcript_length": len(state.get("transcript", "")),
             "recording_duration_seconds": state.get("recording_duration_seconds")
         })
-
-    return projects
+    total = len(projects)
+    start = max(0, int(offset))
+    end = start + max(1, int(limit))
+    return projects[start:end], total

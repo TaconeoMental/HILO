@@ -3,9 +3,10 @@ import re
 from datetime import datetime, timezone, timedelta
 from functools import wraps
 
-from flask import Blueprint, jsonify, request, render_template
+from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
-from sqlalchemy import func
+from sqlalchemy import func, or_
+from sqlalchemy.orm import aliased
 
 from extensions import Session
 from helpers import is_valid_uuid
@@ -65,34 +66,6 @@ def _list_active_sessions(db):
         .all()
     )
     return sessions
-
-
-@admin_bp.route("/admin")
-@login_required
-@admin_required
-def admin_overview_page():
-    return render_template("admin/overview.html", active_page="admin-overview")
-
-
-@admin_bp.route("/admin/users")
-@login_required
-@admin_required
-def admin_users_page():
-    return render_template("admin/users.html", active_page="admin-users")
-
-
-@admin_bp.route("/admin/sessions")
-@login_required
-@admin_required
-def admin_sessions_page():
-    return render_template("admin/sessions.html", active_page="admin-sessions")
-
-
-@admin_bp.route("/admin/audit")
-@login_required
-@admin_required
-def admin_audit_page():
-    return render_template("admin/audit.html", active_page="admin-audit")
 
 
 @admin_bp.route("/api/admin/overview", methods=["GET"])
@@ -227,9 +200,33 @@ def admin_projects_hourly():
 @login_required
 @admin_required
 def list_users():
+    limit = request.args.get("limit", "10")
+    offset = request.args.get("offset", "0")
+    query = request.args.get("q", "").strip()
+
+    try:
+        limit_value = max(1, min(int(limit), 100))
+    except (TypeError, ValueError):
+        limit_value = 10
+
+    try:
+        offset_value = max(0, int(offset))
+    except (TypeError, ValueError):
+        offset_value = 0
+
     db = Session()
     try:
-        users = db.query(User).order_by(User.created_at.desc()).all()
+        base_query = db.query(User)
+        if query:
+            like_query = f"%{query}%"
+            base_query = base_query.filter(User.username.ilike(like_query))
+        total = base_query.count()
+        users = (
+            base_query.order_by(User.created_at.desc())
+            .offset(offset_value)
+            .limit(limit_value)
+            .all()
+        )
         return jsonify({
             "ok": True,
             "users": [
@@ -257,7 +254,10 @@ def list_users():
                     )
                 }
                 for user in users
-            ]
+            ],
+            "total": total,
+            "limit": limit_value,
+            "offset": offset_value
         })
     finally:
         Session.remove()
@@ -503,22 +503,45 @@ def delete_user(user_id):
 @login_required
 @admin_required
 def list_sessions():
+    limit = request.args.get("limit", "10")
+    offset = request.args.get("offset", "0")
+    query = request.args.get("q", "").strip()
+
+    try:
+        limit_value = max(1, min(int(limit), 100))
+    except (TypeError, ValueError):
+        limit_value = 10
+
+    try:
+        offset_value = max(0, int(offset))
+    except (TypeError, ValueError):
+        offset_value = 0
+
     db = Session()
     try:
         now = utcnow()
         ten_min_ago = now - timedelta(minutes=10)
-        sessions = (
-            db.query(UserSession)
+        base_query = (
+            db.query(UserSession, User.username)
+            .join(User, UserSession.user_id == User.id)
             .filter(UserSession.revoked_at.is_(None))
             .filter(UserSession.expires_at > now)
-            .order_by(UserSession.last_seen_at.desc())
+        )
+        if query:
+            like_query = f"%{query}%"
+            base_query = base_query.filter(
+                or_(
+                    User.username.ilike(like_query),
+                    UserSession.ip.ilike(like_query)
+                )
+            )
+        total = base_query.count()
+        rows = (
+            base_query.order_by(UserSession.last_seen_at.desc())
+            .offset(offset_value)
+            .limit(limit_value)
             .all()
         )
-
-        user_map = {
-            str(user.id): user.username
-            for user in db.query(User).all()
-        }
 
         return jsonify({
             "ok": True,
@@ -526,7 +549,7 @@ def list_sessions():
                 {
                     "id": str(session.id),
                     "user_id": str(session.user_id),
-                    "username": user_map.get(str(session.user_id), ""),
+                    "username": username,
                     "created_at": session.created_at.isoformat(),
                     "last_seen_at": session.last_seen_at.isoformat(),
                     "expires_at": session.expires_at.isoformat(),
@@ -534,8 +557,11 @@ def list_sessions():
                     "user_agent": session.user_agent,
                     "is_connected": session.last_seen_at >= ten_min_ago
                 }
-                for session in sessions
-            ]
+                for session, username in rows
+            ],
+            "total": total,
+            "limit": limit_value,
+            "offset": offset_value
         })
     finally:
         Session.remove()
@@ -575,35 +601,57 @@ def audit_logs():
     action = request.args.get("action")
     actor_user_id = request.args.get("actor_user_id")
     target_user_id = request.args.get("target_user_id")
-    limit = request.args.get("limit", "50")
+    limit = request.args.get("limit", "10")
+    offset = request.args.get("offset", "0")
+    query = request.args.get("q", "").strip()
 
     try:
-        limit_value = max(1, min(int(limit), 200))
+        limit_value = max(1, min(int(limit), 100))
     except (TypeError, ValueError):
-        limit_value = 50
+        limit_value = 10
+
+    try:
+        offset_value = max(0, int(offset))
+    except (TypeError, ValueError):
+        offset_value = 0
 
     db = Session()
     try:
-        query = db.query(AuditLog).order_by(AuditLog.created_at.desc())
+        Actor = aliased(User)
+        Target = aliased(User)
+        base_query = (
+            db.query(
+                AuditLog,
+                Actor.username.label("actor_username"),
+                Target.username.label("target_username")
+            )
+            .outerjoin(Actor, AuditLog.actor_user_id == Actor.id)
+            .outerjoin(Target, AuditLog.target_user_id == Target.id)
+        )
         if action:
-            query = query.filter(AuditLog.action == action)
+            base_query = base_query.filter(AuditLog.action == action)
         if actor_user_id and is_valid_uuid(actor_user_id):
-            query = query.filter(AuditLog.actor_user_id == actor_user_id)
+            base_query = base_query.filter(AuditLog.actor_user_id == actor_user_id)
         if target_user_id and is_valid_uuid(target_user_id):
-            query = query.filter(AuditLog.target_user_id == target_user_id)
+            base_query = base_query.filter(AuditLog.target_user_id == target_user_id)
+        if query:
+            like_query = f"%{query}%"
+            base_query = base_query.filter(
+                or_(
+                    AuditLog.action.ilike(like_query),
+                    AuditLog.ip.ilike(like_query),
+                    Actor.username.ilike(like_query),
+                    Target.username.ilike(like_query)
+                )
+            )
 
-        logs = query.limit(limit_value).all()
-        user_ids = set()
-        for entry in logs:
-            if entry.actor_user_id:
-                user_ids.add(entry.actor_user_id)
-            if entry.target_user_id:
-                user_ids.add(entry.target_user_id)
-
-        users = {}
-        if user_ids:
-            for user in db.query(User).filter(User.id.in_(user_ids)).all():
-                users[str(user.id)] = user.username
+        total = base_query.count()
+        rows = (
+            base_query.order_by(AuditLog.created_at.desc())
+            .offset(offset_value)
+            .limit(limit_value)
+            .all()
+        )
 
         return jsonify({
             "ok": True,
@@ -614,21 +662,20 @@ def audit_logs():
                     "actor_user_id": (
                         str(entry.actor_user_id) if entry.actor_user_id else None
                     ),
-                    "actor_username": users.get(
-                        str(entry.actor_user_id), ""
-                    ),
+                    "actor_username": actor_username or "",
                     "target_user_id": (
                         str(entry.target_user_id) if entry.target_user_id else None
                     ),
-                    "target_username": users.get(
-                        str(entry.target_user_id), ""
-                    ),
+                    "target_username": target_username or "",
                     "details": entry.details,
                     "created_at": entry.created_at.isoformat(),
                     "ip": entry.ip
                 }
-                for entry in logs
-            ]
+                for entry, actor_username, target_username in rows
+            ],
+            "total": total,
+            "limit": limit_value,
+            "offset": offset_value
         })
     finally:
         Session.remove()

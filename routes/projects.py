@@ -208,8 +208,35 @@ def project_stop():
 @projects_bp.route("/api/projects", methods=["GET"])
 @login_required
 def list_projects():
-    projects = project_store.list_projects(current_user.id)
-    return jsonify({"ok": True, "projects": projects})
+    limit = request.args.get("limit", "10")
+    offset = request.args.get("offset", "0")
+    query = request.args.get("q", "").strip()
+    status = request.args.get("status", "").strip()
+
+    try:
+        limit_value = max(1, min(int(limit), 100))
+    except ValueError:
+        limit_value = 10
+
+    try:
+        offset_value = max(0, int(offset))
+    except ValueError:
+        offset_value = 0
+
+    projects, total = project_store.list_projects(
+        current_user.id,
+        limit=limit_value,
+        offset=offset_value,
+        query=query or None,
+        status=status or None
+    )
+    return jsonify({
+        "ok": True,
+        "projects": projects,
+        "total": total,
+        "limit": limit_value,
+        "offset": offset_value
+    })
 
 
 @projects_bp.route("/api/project/<project_id>", methods=["DELETE"])

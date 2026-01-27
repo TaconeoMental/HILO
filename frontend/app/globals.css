@@ -1,0 +1,12 @@
+@config "../tailwind.config.mjs";
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background: #0a0e14;
+  color: #f5f5f5;
+  font-family: "Geist", "Segoe UI", system-ui, sans-serif;
+}

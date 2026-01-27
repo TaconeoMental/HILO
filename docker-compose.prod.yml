@@ -1,5 +1,5 @@
 services:
-  web:
+  backend:
     build: .
     environment:
       - FLASK_ENV=production
@@ -67,6 +67,18 @@ services:
     networks:
       - internal_net
 
+  frontend:
+    build: ./frontend
+    environment:
+      - NODE_ENV=production
+      - API_INTERNAL_URL=http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - internal_net
+
   nginx:
     image: nginx:1.27-alpine
     ports:
@@ -76,8 +88,8 @@ services:
       - ./infra/nginx/conf.d:/etc/nginx/conf.d:ro
       - ./infra/certs:/etc/nginx/certs:ro
     depends_on:
-      web:
-        condition: service_healthy
+      frontend:
+        condition: service_started
     restart: unless-stopped
     networks:
       - internal_net

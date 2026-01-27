@@ -1,8 +1,6 @@
 services:
-  web:
+  backend:
     build: .
-    ports:
-      - "8000:8000"
     volumes:
       - .:/app
       # prevenir sobreescritura
@@ -65,13 +63,20 @@ services:
       redis:
         condition: service_started
 
-  assets-watcher:
-    image: node:18-alpine
+  frontend:
+    image: node:20-alpine
     working_dir: /app
     volumes:
-      - .:/app
-    command: sh -lc "npm install && npx vite build --watch"
-    restart: always
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - API_INTERNAL_URL=http://backend:8000
+    command: sh -lc "npm install && npm run dev -- --hostname 0.0.0.0 --port 3000"
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
 
 volumes:
   postgres_data:
