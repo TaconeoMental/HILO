@@ -216,6 +216,7 @@ def api_change_password():
 
 
 @auth_bp.route("/api/me", methods=["GET"])
+@limiter.exempt
 @login_required
 def api_me():
     return jsonify({

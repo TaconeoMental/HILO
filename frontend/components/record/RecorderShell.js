@@ -12,7 +12,6 @@ import {
   PlayIcon,
   StopIcon
 } from "@heroicons/react/24/solid";
-import RecorderHeader from "./RecorderHeader";
 import ToastList from "@/components/common/ToastList";
 import Preview from "./Preview";
 import RecorderControls from "./RecorderControls";
@@ -111,17 +110,9 @@ export default function RecorderShell() {
 
   return (
     <>
-      <div className="hidden min-h-screen bg-bg-primary text-text-primary lg:block">
-        <RecorderHeader
-          projectName={recorder.projectName}
-          onProjectNameChange={recorder.setProjectName}
-          statusLabel={recorder.statusLabel}
-          timerLabel={recorder.timerLabel}
-          status={recorder.status}
-        />
-
-        <main className="mx-auto flex min-h-[calc(100vh-140px)] w-full max-w-5xl flex-col gap-4 px-4 pb-6 pt-4">
-          <section className="flex flex-col gap-4">
+      <div className="hidden h-full overflow-hidden lg:flex lg:flex-col">
+        <main className="mx-auto flex min-h-0 flex-1 w-full max-w-5xl flex-col gap-4 overflow-hidden px-4 pb-6 pt-4">
+          <section className="flex min-h-0 flex-1 flex-col gap-4">
             <Preview
               videoRef={recorder.videoRef}
               canvasRef={recorder.canvasRef}
@@ -139,9 +130,12 @@ export default function RecorderShell() {
               onParticipantNameChange={recorder.setParticipantName}
               status={recorder.status}
               onOpenSettings={recorder.toggleSettings}
+              projectName={recorder.projectName}
+              onProjectNameChange={recorder.setProjectName}
+              statusLabel={recorder.statusLabel}
             />
 
-            <div className="rounded-2xl border border-bg-surface-light bg-bg-surface/60 p-4">
+            <div className="shrink-0 rounded-2xl border border-bg-surface-light bg-bg-surface/60 p-4">
               <RecorderControls
                 status={recorder.status}
                 onStart={recorder.start}
@@ -248,11 +242,13 @@ function MobileRecorder({ recorder, className = "", nameFlash, setNameFlash }) {
 
   const handleCapture = () => {
     if (!recorder.canCapturePhoto) return;
+    
+    // Flash doble rapido: on-off-on-off en 300ms
     setFlash(true);
-    if (flashTimeoutRef.current) {
-      clearTimeout(flashTimeoutRef.current);
-    }
-    flashTimeoutRef.current = setTimeout(() => setFlash(false), 180);
+    setTimeout(() => setFlash(false), 75);
+    setTimeout(() => setFlash(true), 150);
+    setTimeout(() => setFlash(false), 225);
+    
     recorder.capturePhoto();
   };
 
@@ -267,8 +263,8 @@ function MobileRecorder({ recorder, className = "", nameFlash, setNameFlash }) {
           orientation={recorder.orientation}
         />
         <div
-          className={`pointer-events-none absolute inset-0 bg-white/80 transition-opacity duration-300 ${
-            flash ? "opacity-80" : "opacity-0"
+          className={`pointer-events-none absolute inset-0 bg-white ${
+            flash ? "opacity-90" : "opacity-0"
           }`}
         />
         <div className="absolute bottom-24 left-4">

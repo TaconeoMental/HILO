@@ -412,7 +412,7 @@ export function useRecorder() {
     photos.capturePhoto();
   }, [photos, showPreview]);
 
-  const canCapturePhoto = showPreview && !photos.isCapturing;
+  const canCapturePhoto = showPreview && !photos.isCapturing && state.status === "recording";
 
   const switchCamera = useCallback(async () => {
     try {
