@@ -48,4 +48,5 @@ class Config:
     IMAGE_STYLE_ENABLED = (
         os.getenv("IMAGE_STYLE_ENABLED", "false").lower() == "true"
     )
+    STYLIZE_PARALLEL_WORKERS = int(os.getenv("STYLIZE_PARALLEL_WORKERS", "2"))
     MAX_IMAGE_SIZE = int(os.getenv("MAX_IMAGE_SIZE", str(2 * 1024 * 1024)))

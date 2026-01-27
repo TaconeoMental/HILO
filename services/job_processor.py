@@ -1,5 +1,7 @@
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from logger import get_logger
+from config import Config
 from services import project_store, timeline, quotas
 from services.llm_service import (
     insert_photo_markers,
@@ -11,6 +13,36 @@ from extensions import Session
 from models import log_audit
 
 log = get_logger("job")
+
+
+def _stylize_single_photo(photo, project_id, project_dir, user_id):
+    # Thread-safe.
+    photo_id = photo["photo_id"]
+    original = photo.get("original_path")
+
+    if not original or not os.path.exists(original):
+        return (photo_id, False, None, False)
+
+    # Reservar cuota (cada thread tiene su propia sesion DB)
+    quota_reserved = False
+    if user_id:
+        reserve_ok, _error = quotas.reserve_stylize_quota(
+            user_id,
+            reason="photo_stylize"
+        )
+        if not reserve_ok:
+            return (photo_id, False, None, False)
+        quota_reserved = True
+
+    stylized_name = f"stylized_{photo_id}.jpg"
+    stylized_path = os.path.join(project_dir, "photos", stylized_name)
+
+    success = stylize_image(original, stylized_path)
+
+    if not success and quota_reserved and user_id:
+        quotas.release_stylize_quota(user_id)
+
+    return (photo_id, success, stylized_path if success else None, quota_reserved)
 
 
 def process_project(project_id):
@@ -39,9 +71,6 @@ def process_project(project_id):
         log.info(f"Proyecto {project_id}: transcript {t_len} chars, {len(chunks)} chunks")
 
         project_dir = project_store.get_project_dir(project_id)
-        fallback_path = os.path.join(project_dir, "transcript_raw.txt")
-        with open(fallback_path, "w", encoding="utf-8") as f:
-            f.write(raw_transcript)
 
         project_store.update_project_status(
             project_id,
@@ -54,38 +83,54 @@ def process_project(project_id):
         stylize_attempts = 0
 
         if should_stylize:
-            for photo in photos:
-                if not photo.get("stylized_path"):
-                    original = photo.get("original_path")
-                    if original and os.path.exists(original):
-                        reserve_ok = True
-                        if user_id:
-                            reserve_ok, _error = quotas.reserve_stylize_quota(
-                                user_id,
-                                reason="photo_stylize"
-                            )
-                        if not reserve_ok:
-                            continue
+            # Filtrar fotos que necesitan estilización
+            photos_to_stylize = [
+                p for p in photos
+                if not p.get("stylized_path") and p.get("original_path")
+            ]
 
-                        stylize_attempts += 1
+            if photos_to_stylize:
+                max_workers = min(
+                    Config.STYLIZE_PARALLEL_WORKERS,
+                    len(photos_to_stylize)
+                )
+                log.info(
+                    f"Proyecto {project_id}: estilizando {len(photos_to_stylize)} "
+                    f"fotos con {max_workers} workers"
+                )
 
-                        stylized_name = f"stylized_{photo['photo_id']}.jpg"
-                        stylized_path = os.path.join(
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    futures = {
+                        executor.submit(
+                            _stylize_single_photo,
+                            photo,
+                            project_id,
                             project_dir,
-                            "photos",
-                            stylized_name
-                        )
-                        if stylize_image(original, stylized_path):
-                            timeline.update_photo_stylized(
-                                project_id,
-                                photo["photo_id"],
-                                stylized_path
+                            user_id
+                        ): photo
+                        for photo in photos_to_stylize
+                    }
+
+                    for future in as_completed(futures):
+                        photo = futures[future]
+                        try:
+                            photo_id, success, stylized_path, quota_used = (
+                                future.result()
                             )
-                            photo["stylized_path"] = stylized_path
-                        else:
+                            if quota_used:
+                                stylize_attempts += 1
+                            if success and stylized_path:
+                                timeline.update_photo_stylized(
+                                    project_id,
+                                    photo_id,
+                                    stylized_path
+                                )
+                                photo["stylized_path"] = stylized_path
+                            elif quota_used:
+                                stylize_errors += 1
+                        except Exception as e:
+                            log.error(f"Error procesando foto: {e}")
                             stylize_errors += 1
-                            if user_id:
-                                quotas.release_stylize_quota(user_id)
 
             if stylize_errors > 0:
                 log.warning(
@@ -117,6 +162,11 @@ def process_project(project_id):
             photos,
             chunks
         )
+
+        # Guardar transcripción con marcadores para debug/fallback
+        fallback_path = os.path.join(project_dir, "transcript_raw.txt")
+        with open(fallback_path, "w", encoding="utf-8") as f:
+            f.write(transcript_with_markers)
 
         script, usage = generate_script_with_usage(
             transcript_with_markers,
