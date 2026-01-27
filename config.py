@@ -4,15 +4,26 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Para dev
-_DEFAULT_DB = "postgresql+psycopg://hilo:hilo_dev_password@db:5432/hilo"
+def _build_database_url():
+    user = os.getenv("POSTGRES_USER", "")
+    password = os.getenv("POSTGRES_PASSWORD", "")
+    host = os.getenv("POSTGRES_HOST", "db")
+    port = os.getenv("POSTGRES_PORT", "5432")
+    database = os.getenv("POSTGRES_DB", "")
+
+    if not all([user, password, database]):
+        return "postgresql+psycopg://hilo:hilo_dev_password@db:5432/hilo"
+
+    return (
+        f"postgresql+psycopg://{user}:{password}@{host}:{port}/{database}"
+    )
 
 
 class Config:
     SECRET_KEY = os.getenv("FLASK_SECRET_KEY", "dev-secret-change-me")
     FLASK_ENV = os.getenv("FLASK_ENV", "development")
 
-    DATABASE_URL = os.getenv("DATABASE_URL", _DEFAULT_DB)
+    DATABASE_URL = _build_database_url()
 
     REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 

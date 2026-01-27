@@ -2,7 +2,7 @@ import os
 import re
 import html as html_lib
 
-from flask import Blueprint, jsonify, render_template, send_from_directory
+from flask import Blueprint, jsonify, send_from_directory
 from flask_login import login_required, current_user
 
 from helpers import is_valid_uuid, encode_image_base64, get_mime_type
@@ -24,12 +24,15 @@ def project_status(project_id):
     if not record:
         return jsonify({"ok": False, "error": "Proyecto no encontrado"}), 404
 
+    state = project_store.load_state(project_id) or {}
     return jsonify({
         "ok": True,
         "status": record.status,
         "error": record.error_message,
         "output_file": record.output_file,
-        "fallback_file": record.fallback_file
+        "fallback_file": record.fallback_file,
+        "project_name": state.get("project_name", record.title),
+        "participant_name": state.get("participant_name", "")
     })
 
 
@@ -37,34 +40,6 @@ def project_status(project_id):
 @login_required
 def job_status(job_id):
     return project_status(job_id)
-
-
-@jobs_bp.route("/r/<project_id>")
-@login_required
-def result_page(project_id):
-    if not is_valid_uuid(project_id):
-        return "Proyecto no encontrado", 404
-
-    record = project_store.get_project_for_user(project_id, current_user.id)
-    if not record:
-        return "Proyecto no encontrado", 404
-
-    if record.expires_at and record.expires_at <= utcnow():
-        return "Proyecto expirado", 410
-
-    state = project_store.load_state(project_id) or {}
-
-    info = {
-        "project_id": project_id,
-        "project_name": state.get("project_name", record.title),
-        "participant_name": state.get("participant_name", ""),
-        "status": record.status,
-        "error": record.error_message,
-        "output_file": record.output_file,
-        "fallback_file": record.fallback_file
-    }
-
-    return render_template("result.html", project=info)
 
 
 @jobs_bp.route("/r/<project_id>/download/<filename>")

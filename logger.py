@@ -39,7 +39,7 @@ def setup_logger(name="hilo", level=logging.INFO):
 
 
 # Logger principal de la aplicación
-log = setup_logger()
+log = setup_logger(level=logging.DEBUG)
 
 
 def get_logger(name):

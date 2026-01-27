@@ -27,8 +27,8 @@ def is_valid_project_id(project_id):
     except ValueError:
         return False
 
-    data_dir = os.path.realpath(Config.DATA_DIR)
-    project_dir = os.path.realpath(os.path.join(Config.DATA_DIR, project_id))
+    data_dir = os.path.realpath(os.path.join(Config.DATA_DIR, "projects"))
+    project_dir = os.path.realpath(os.path.join(data_dir, project_id))
 
     if not project_dir.startswith(data_dir + os.sep):
         return False
@@ -90,7 +90,7 @@ def create_project(
         raise ValueError("user_id inválido")
 
     project_id = str(uuid.uuid4())
-    project_dir = os.path.join(Config.DATA_DIR, project_id)
+    project_dir = os.path.join(Config.DATA_DIR, "projects", project_id)
     audio_chunks_dir = os.path.join(project_dir, "audio_chunks")
     wav_chunks_dir = os.path.join(project_dir, "wav_chunks")
     photos_dir = os.path.join(project_dir, "photos")
@@ -141,7 +141,7 @@ def create_project(
 
 
 def get_project_dir(project_id):
-    return os.path.join(Config.DATA_DIR, project_id)
+    return os.path.join(Config.DATA_DIR, "projects", project_id)
 
 
 def get_state_path(project_id):
@@ -349,53 +349,36 @@ def delete_project(project_id):
         finally:
             Session.remove()
 
-    jobs_dir = os.path.join(Config.DATA_DIR, "jobs")
-    if os.path.exists(jobs_dir):
-        for job_name in os.listdir(jobs_dir):
-            job_dir = os.path.join(jobs_dir, job_name)
-            status_path = os.path.join(job_dir, "status.json")
-
-            if not os.path.exists(status_path):
-                continue
-
-            try:
-                with open(status_path, "r", encoding="utf-8") as f:
-                    status = json.load(f)
-
-                if status.get("project_id") == project_id:
-                    shutil.rmtree(job_dir)
-                    log.info(f"Job eliminado: {job_name}")
-            except Exception as e:
-                log.warning(f"No se pudo verificar/eliminar job {job_name}: {e}")
-
     shutil.rmtree(get_project_dir(project_id))
     log.info(f"Proyecto eliminado: {project_id}")
     return True
 
 
-def list_projects(user_id):
+def list_projects(user_id, limit=10, offset=0, query=None, status=None):
     user_uuid = _to_uuid(user_id)
     if not user_uuid:
-        return []
+        return [], 0
 
     db = Session()
     try:
-        records = (
-            db.query(Project)
-            .filter_by(user_id=user_uuid)
-            .order_by(Project.created_at.desc())
-            .all()
-        )
+        base_query = db.query(Project).filter_by(user_id=user_uuid)
+        if status:
+            base_query = base_query.filter_by(status=status)
+        if query:
+            like_query = f"%{query}%"
+            base_query = base_query.filter(Project.title.ilike(like_query))
+        records = base_query.order_by(Project.created_at.desc()).all()
     finally:
         Session.remove()
 
     projects = []
+    query_normalized = query.lower() if query else None
 
     for record in records:
         project_id = str(record.id)
         state = load_state(project_id) or {}
 
-        project_dir = os.path.join(Config.DATA_DIR, project_id)
+        project_dir = get_project_dir(project_id)
         photos_dir = os.path.join(project_dir, "photos")
         photo_count = 0
         if os.path.exists(photos_dir):
@@ -413,10 +396,19 @@ def list_projects(user_id):
         if project_status in {"queued", "processing", "done", "error"}:
             job_status = project_status
 
+        project_name = state.get("project_name", record.title or "Sin título")
+        participant_name = state.get("participant_name", "")
+
+        if query_normalized:
+            name_match = query_normalized in project_name.lower()
+            participant_match = query_normalized in participant_name.lower()
+            if not (name_match or participant_match):
+                continue
+
         projects.append({
             "project_id": project_id,
-            "project_name": state.get("project_name", record.title or "Sin título"),
-            "participant_name": state.get("participant_name", ""),
+            "project_name": project_name,
+            "participant_name": participant_name,
             "created_at": created_at,
             "expires_at": record.expires_at.isoformat() if record.expires_at else None,
             "stopped_at": state.get("stopped_at"),
@@ -433,29 +425,7 @@ def list_projects(user_id):
             "transcript_length": len(state.get("transcript", "")),
             "recording_duration_seconds": state.get("recording_duration_seconds")
         })
-
-    return projects
-
-
-def get_project_job(project_id):
-    jobs_dir = os.path.join(Config.DATA_DIR, "jobs")
-    if not os.path.exists(jobs_dir):
-        return None
-
-    for job_name in os.listdir(jobs_dir):
-        job_dir = os.path.join(jobs_dir, job_name)
-        status_path = os.path.join(job_dir, "status.json")
-
-        if not os.path.exists(status_path):
-            continue
-
-        try:
-            with open(status_path, "r", encoding="utf-8") as f:
-                status = json.load(f)
-
-            if status.get("project_id") == project_id:
-                return status
-        except Exception:
-            continue
-
-    return None
+    total = len(projects)
+    start = max(0, int(offset))
+    end = start + max(1, int(limit))
+    return projects[start:end], total

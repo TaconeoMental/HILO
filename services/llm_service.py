@@ -25,7 +25,7 @@ def generate_script_with_usage(transcript_with_markers, participant_name="ACTOR"
         log.info(f"Generando guion para {participant_name}...")
 
         user_content = (
-            f"Participante: {participant_name}\n\n"
+            f"Nombre del participante (usar tal cual): {participant_name}\n\n"
             f"Transcripción:\n{transcript_with_markers}"
         )
 

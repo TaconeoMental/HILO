@@ -7,11 +7,13 @@ from flask_login import login_required, current_user
 from config import Config
 from helpers import is_valid_uuid, parse_data_url, get_image_extension
 from extensions import limiter, LIMITS, Session
+from logger import get_logger
 from models import PhotoEvent
 from services import project_store, timeline
 from services.audio_convert import webm_to_wav, FFmpegNotFoundError, ConversionError
 from services.stt_whisper import transcribe_wav
 
+log = get_logger("media")
 
 media_bp = Blueprint('media', __name__)
 
@@ -86,6 +88,7 @@ def audio_chunk():
         return jsonify({"ok": False, "error": f"falló la conversión: {str(e)}"}), 500
 
     text = transcribe_wav(wav_path)
+    log.info(f"Chunk {chunk_index} transcrito: {len(text)} chars")
 
     try:
         project_store.append_chunk_result(
@@ -100,8 +103,7 @@ def audio_chunk():
 
     return jsonify({
         "ok": True,
-        "chunk_index": chunk_index,
-        "text": text
+        "chunk_index": chunk_index
     })
 
 

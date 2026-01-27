@@ -1,9 +1,5 @@
 from datetime import datetime, timezone, timedelta
-from functools import wraps
-
-from flask import (
-    Blueprint, jsonify, request, redirect, url_for, render_template, session
-)
+from flask import Blueprint, jsonify, request, redirect, session
 from flask_login import login_user, logout_user, login_required, current_user
 
 from config import Config
@@ -19,17 +15,6 @@ def get_client_ip():
     if request.headers.get("X-Forwarded-For"):
         return request.headers.get("X-Forwarded-For").split(",")[0].strip()
     return request.remote_addr
-
-
-def must_change_password_redirect(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if current_user.is_authenticated:
-            if current_user.must_change_password:
-                if request.endpoint != "auth.change_password_page":
-                    return redirect(url_for("auth.change_password_page"))
-        return f(*args, **kwargs)
-    return decorated_function
 
 
 def register_auth_hooks(app):
@@ -70,23 +55,8 @@ def _force_logout(message):
     if request.path.startswith("/api/"):
         return jsonify({"ok": False, "error": message}), 401
 
-    return redirect(url_for("auth.login_page"))
+    return redirect("/login")
 
-
-
-@auth_bp.route("/login")
-def login_page():
-    if current_user.is_authenticated:
-        if current_user.must_change_password:
-            return redirect(url_for("auth.change_password_page"))
-        return redirect(url_for("pages.projects_page"))
-    return render_template("auth/login.html")
-
-
-@auth_bp.route("/account/change-password")
-@login_required
-def change_password_page():
-    return render_template("auth/change_password.html")
 
 
 @auth_bp.route("/api/login", methods=["POST"])
@@ -151,13 +121,13 @@ def api_login():
         if user.must_change_password:
             return jsonify({
                 "ok": True,
-                "redirect": url_for("auth.change_password_page"),
+                "redirect": "/change-password",
                 "must_change_password": True
             })
 
         return jsonify({
             "ok": True,
-            "redirect": url_for("pages.projects_page"),
+            "redirect": "/projects",
             "must_change_password": False
         })
 
@@ -192,7 +162,7 @@ def api_logout():
 
     session.clear()
     logout_user()
-    return jsonify({"ok": True, "redirect": url_for("auth.login_page")})
+    return jsonify({"ok": True, "redirect": "/login"})
 
 
 @auth_bp.route("/api/change-password", methods=["POST"])
@@ -238,7 +208,7 @@ def api_change_password():
         db.commit()
         return jsonify({
             "ok": True,
-            "redirect": url_for("pages.projects_page")
+            "redirect": "/projects"
         })
 
     finally:
@@ -246,6 +216,7 @@ def api_change_password():
 
 
 @auth_bp.route("/api/me", methods=["GET"])
+@limiter.exempt
 @login_required
 def api_me():
     return jsonify({

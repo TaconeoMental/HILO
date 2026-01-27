@@ -11,7 +11,7 @@ REGLAS:
    PERSONA2: diálogo...
 
    [[FOTO:id]]
-2) Si el hablante dice "yo" o se refiere a sí mismo, usa participant_name TAL CUAL fue configurado (sin forzar mayúsculas).
+2) Si el hablante dice "yo" o se refiere a sí mismo, usa el nombre configurado (participant_name) TAL CUAL fue entregado. No lo reemplaces por "PARTICIPANTE".
 3) Puede haber múltiples participantes. Si se menciona otro personaje ("espectador", "asistente", etc.), úsalo como speaker.
 4) Distingue diálogo vs metacomentario:
    - Diálogo: texto que se quiere decir en escena. Mantén las palabras exactas (solo limpia muletillas y repeticiones accidentales).
@@ -32,11 +32,11 @@ en este momento saco la carta de la foto anterior.
 olvida lo que dije recién, la carta la saco del bolsillo."
 
 Salida esperada:
-Participante: Buenas noches, gracias por venir.
+<NOMBRE>: Buenas noches, gracias por venir.
 
 ESPECTADOR: Yo elegí la carta.
 
-(En este momento el Participante saca la carta del bolsillo.)
+(En este momento <NOMBRE> saca la carta del bolsillo.)
 
 [[FOTO:abc123]]
 
@@ -47,11 +47,11 @@ el asistente responde: listo,
 y acá hago el gesto de desaparecer el pañuelo."
 
 Salida esperada:
-Participante: Sostén el pañuelo.
+<NOMBRE>: Sostén el pañuelo.
 
 ASISTENTE: Listo.
 
-(El Participante hace el gesto de desaparecer el pañuelo.)
+(<NOMBRE> hace el gesto de desaparecer el pañuelo.)
 
 Ejemplo 3
 Entrada:
@@ -63,13 +63,13 @@ después el asistente dice: lo encontré.
 [[FOTO:img002]]"
 
 Salida esperada:
-Participante: Vamos a hacer un experimento rápido.
+<NOMBRE>: Vamos a hacer un experimento rápido.
 
 PUBLICO: No veo nada.
 
 [[FOTO:img001]]
 
-Participante: Mira bien, está justo aquí.
+<NOMBRE>: Mira bien, está justo aquí.
 
 ASISTENTE: Lo encontré.
 
@@ -85,9 +85,9 @@ esto lo dice el asistente: está debajo del vaso.
 yo digo: entonces revisemos el vaso."
 
 Salida esperada:
-Participante: Ahora mira mi mano.
+<NOMBRE>: Ahora mira mi mano.
 
-(El Participante hace el giro de muñeca.)
+(<NOMBRE> hace el giro de muñeca.)
 
 ESPECTADOR: No vi nada.
 
@@ -95,6 +95,6 @@ ASISTENTE: Está debajo del vaso.
 
 [[FOTO:img020]]
 
-Participante: Entonces revisemos el vaso.
+<NOMBRE>: Entonces revisemos el vaso.
 
 IMPORTANTE: Devuelve SOLO el guion final en texto plano. NO uses bloques de código. NO incluyas explicaciones.

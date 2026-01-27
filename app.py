@@ -40,7 +40,7 @@ def create_app():
     register_cli(app)
 
     os.makedirs(Config.DATA_DIR, exist_ok=True)
-    os.makedirs(os.path.join(Config.DATA_DIR, "jobs"), exist_ok=True)
+    os.makedirs(os.path.join(Config.DATA_DIR, "projects"), exist_ok=True)
 
     return app
 
