@@ -14,9 +14,9 @@ export default function AppShell({
   const isProjectsActive = pathname.startsWith("/projects");
   const isAdminActive = pathname.startsWith("/admin");
 
-  const linkBase = "rounded-full px-4 py-2 transition-colors";
-  const linkInactive = `${linkBase} border border-bg-surface-light text-text-secondary hover:border-accent hover:text-accent-light`;
-  const linkActive = `${linkBase} border border-accent bg-accent/10 text-accent`;
+  const linkBase = "px-3 py-2 transition-colors";
+  const linkInactive = `${linkBase} text-text-secondary hover:text-text-primary`;
+  const linkActive = `${linkBase} text-accent border-b-2 border-accent`;
 
   return (
     <div className={`bg-bg-primary text-text-primary ${
@@ -27,19 +27,19 @@ export default function AppShell({
           hideNavOnMobile ? "hidden md:block" : ""
         }`}
       >
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-4">
-          <div className="flex items-center gap-3">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 py-4">
+          <div className="flex items-center gap-3 shrink-0">
             <span className="text-sm lg:text-xl font-semibold tracking-[0.3em] text-accent">HILO</span>
             {showNewRecording && (
               <Link
                 href="/record"
-                className="rounded-full bg-accent/20 px-3 py-1.5 text-sm font-medium text-accent transition-colors hover:bg-accent/30"
+                className="hidden md:inline-flex rounded-full bg-accent/20 px-3 py-1.5 text-sm font-medium text-accent transition-colors hover:bg-accent/30"
               >
                 + Nueva grabación
               </Link>
             )}
           </div>
-          <nav className="flex items-center gap-4 text-sm font-medium">
+          <nav className="flex items-center gap-2 md:gap-4 text-sm font-medium">
             <Link
               href="/projects"
               className={isProjectsActive ? linkActive : linkInactive}
