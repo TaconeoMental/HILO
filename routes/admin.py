@@ -805,18 +805,7 @@ def update_user_quota(user_id):
     reset_stylize = bool(data.get("reset_stylize"))
     reset_recording = bool(data.get("reset_recording"))
 
-    extra_stylizes, error = _parse_optional_int(
-        data.get("extra_stylizes"),
-        "extra_stylizes"
-    )
-    if error:
-        return jsonify({"ok": False, "error": error}), 400
-
-    if not any([
-        reset_stylize,
-        reset_recording,
-        extra_stylizes
-    ]):
+    if not any([reset_stylize, reset_recording]):
         return jsonify({"ok": False, "error": "Sin cambios"}), 400
 
     db = Session()
@@ -837,11 +826,6 @@ def update_user_quota(user_id):
             user.recording_seconds_used = 0
             user.recording_window_started_at = now
             changes["recording_seconds_used"] = 0
-
-        if extra_stylizes:
-            current = user.stylizes_used_in_window or 0
-            user.stylizes_used_in_window = max(0, current - extra_stylizes)
-            changes["extra_stylizes"] = extra_stylizes
 
         log_audit(
             db,

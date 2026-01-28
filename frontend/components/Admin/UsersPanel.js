@@ -19,6 +19,97 @@ function formatOptionalNumber(value) {
   return Number.isNaN(parsed) ? null : parsed;
 }
 
+function Switch({ checked, onChange, disabled = false }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => !disabled && onChange(!checked)}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+        checked ? "bg-accent" : "bg-bg-surface-light"
+      } ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+    >
+      <span
+        className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
+          checked ? "translate-x-6" : "translate-x-1"
+        }`}
+      />
+    </button>
+  );
+}
+
+function ClipboardIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={1.5}
+      stroke="currentColor"
+      className="h-4 w-4"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9.75a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184"
+      />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={2}
+      stroke="currentColor"
+      className="h-4 w-4"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+    </svg>
+  );
+}
+
+function PasswordDisplay({ password, onToast }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(password);
+      setCopied(true);
+      onToast?.("Contraseña copiada", "success");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      onToast?.("Error al copiar", "error");
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-success/40 bg-success/10 px-4 py-3">
+      <div className="text-xs uppercase text-text-muted">Contraseña temporal</div>
+      <div className="mt-2 flex items-center justify-between gap-3">
+        <span className="font-mono text-sm text-text-primary">{password}</span>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+            copied
+              ? "border-success/40 bg-success/20 text-success"
+              : "border-bg-surface-light bg-bg-surface-light/30 text-text-secondary hover:text-text-primary"
+          }`}
+        >
+          {copied ? <CheckIcon /> : <ClipboardIcon />}
+          {copied ? "Copiado" : "Copiar"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function UsersPanel({ onToast }) {
   const { items, total, limit, loading, load, applyFilters } = useAdminUsers();
   const [queryInput, setQueryInput] = useState("");
@@ -40,12 +131,8 @@ export default function UsersPanel({ onToast }) {
   const [editTarget, setEditTarget] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [editLoading, setEditLoading] = useState(false);
-  const [quotaForm, setQuotaForm] = useState({
-    reset_stylize: false,
-    reset_recording: false,
-    extra_stylizes: ""
-  });
   const [confirmAction, setConfirmAction] = useState(null);
+  const [quotaResetResult, setQuotaResetResult] = useState(null);
 
   const canLoadMore = items.length < total;
 
@@ -100,7 +187,9 @@ export default function UsersPanel({ onToast }) {
         username: createForm.username.trim(),
         is_active: createForm.is_active,
         can_stylize_images: createForm.can_stylize_images,
-        daily_stylize_quota: formatOptionalNumber(createForm.daily_stylize_quota),
+        daily_stylize_quota: createForm.can_stylize_images
+          ? formatOptionalNumber(createForm.daily_stylize_quota)
+          : 0,
         recording_minutes_quota: formatOptionalNumber(createForm.recording_minutes_quota),
         recording_window_days: formatOptionalNumber(createForm.recording_window_days)
       };
@@ -118,7 +207,6 @@ export default function UsersPanel({ onToast }) {
         user: data.user,
         temp_password: data.temp_password
       });
-      onToast?.("Usuario creado", "success");
       loadSafe({ reset: true });
     } catch (error) {
       onToast?.(error.message || "Error creando usuario", "error");
@@ -143,7 +231,6 @@ export default function UsersPanel({ onToast }) {
         user: data.user,
         temp_password: data.temp_password
       });
-      onToast?.("Contraseña reseteada", "success");
     } catch (error) {
       onToast?.(error.message || "Error reseteando contraseña", "error");
     } finally {
@@ -159,11 +246,6 @@ export default function UsersPanel({ onToast }) {
       recording_minutes_quota: user.recording_minutes_quota ?? "",
       recording_window_days: user.recording_window_days ?? ""
     });
-    setQuotaForm({
-      reset_stylize: false,
-      reset_recording: false,
-      extra_stylizes: ""
-    });
   };
 
   const handleSaveEdit = async () => {
@@ -172,7 +254,9 @@ export default function UsersPanel({ onToast }) {
     setEditLoading(true);
     try {
       const flagsPayload = {};
-      const nextDaily = formatOptionalNumber(editForm.daily_stylize_quota);
+      const nextDaily = editForm.can_stylize_images
+        ? formatOptionalNumber(editForm.daily_stylize_quota)
+        : 0;
       const nextRecording = formatOptionalNumber(editForm.recording_minutes_quota);
       const nextWindow = formatOptionalNumber(editForm.recording_window_days);
 
@@ -190,46 +274,22 @@ export default function UsersPanel({ onToast }) {
       }
 
       const hasFlags = Object.keys(flagsPayload).length > 0;
-      const extraStylizes = formatOptionalNumber(quotaForm.extra_stylizes);
-      const hasQuota = Boolean(
-        quotaForm.reset_stylize || quotaForm.reset_recording || extraStylizes
-      );
 
-      if (!hasFlags && !hasQuota) {
+      if (!hasFlags) {
         onToast?.("Sin cambios", "warning");
         setEditLoading(false);
         return;
       }
 
-      if (hasFlags) {
-        const res = await fetch(`/api/admin/user/${editTarget.id}/flags`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify(flagsPayload)
-        });
-        const data = await res.json();
-        if (!data.ok) {
-          throw new Error(data.error || "Error actualizando flags");
-        }
-      }
-
-      if (hasQuota) {
-        const quotaPayload = {
-          reset_stylize: quotaForm.reset_stylize,
-          reset_recording: quotaForm.reset_recording,
-          extra_stylizes: extraStylizes
-        };
-        const res = await fetch(`/api/admin/user/${editTarget.id}/quota`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify(quotaPayload)
-        });
-        const data = await res.json();
-        if (!data.ok) {
-          throw new Error(data.error || "Error actualizando cuota");
-        }
+      const res = await fetch(`/api/admin/user/${editTarget.id}/flags`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(flagsPayload)
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        throw new Error(data.error || "Error actualizando flags");
       }
 
       onToast?.("Usuario actualizado", "success");
@@ -240,6 +300,38 @@ export default function UsersPanel({ onToast }) {
       onToast?.(error.message || "Error actualizando usuario", "error");
     } finally {
       setEditLoading(false);
+    }
+  };
+
+  const handleResetQuota = async (type) => {
+    if (!editTarget) return;
+
+    const payload = {
+      reset_stylize: type === "stylize",
+      reset_recording: type === "recording"
+    };
+
+    try {
+      const res = await fetch(`/api/admin/user/${editTarget.id}/quota`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        throw new Error(data.error || "Error reseteando cuota");
+      }
+      setQuotaResetResult({
+        type,
+        message:
+          type === "stylize"
+            ? "Cuota de stylize reseteada correctamente"
+            : "Cuota de grabación reseteada correctamente"
+      });
+      loadSafe({ reset: true });
+    } catch (error) {
+      onToast?.(error.message || "Error reseteando cuota", "error");
     }
   };
 
@@ -272,6 +364,27 @@ export default function UsersPanel({ onToast }) {
       : 0;
     const limitValue = user.recording_minutes_quota ?? "Sin límite";
     return `${usedMinutes} / ${limitValue} min`;
+  };
+
+  const getEditStylizeUsed = () => {
+    if (!editTarget) return 0;
+    return editTarget.stylizes_used_in_window ?? 0;
+  };
+
+  const getEditStylizeLimit = () => {
+    if (!editTarget) return "Sin límite";
+    return editTarget.daily_stylize_quota ?? "Sin límite";
+  };
+
+  const getEditRecordingUsed = () => {
+    if (!editTarget) return 0;
+    const seconds = editTarget.recording_seconds_used ?? 0;
+    return Math.round(seconds / 60);
+  };
+
+  const getEditRecordingLimit = () => {
+    if (!editTarget) return "Sin límite";
+    return editTarget.recording_minutes_quota ?? "Sin límite";
   };
 
   return (
@@ -499,7 +612,8 @@ export default function UsersPanel({ onToast }) {
         ) : null}
       </div>
 
-      <Modal open={createOpen} title="Crear usuario" onClose={() => setCreateOpen(false)}>
+      {/* Modal Crear Usuario */}
+      <Modal open={createOpen && !createResult} title="Crear usuario" onClose={() => setCreateOpen(false)}>
         <div className="space-y-4">
           <div className="grid gap-3 md:grid-cols-2">
             <label className="text-xs text-text-muted">
@@ -513,14 +627,14 @@ export default function UsersPanel({ onToast }) {
               />
             </label>
             <label className="text-xs text-text-muted">
-              Cuota diaria stylize
+              Ventana de grabación (días)
               <input
                 type="number"
-                value={createForm.daily_stylize_quota}
+                value={createForm.recording_window_days}
                 onChange={(event) =>
                   setCreateForm((prev) => ({
                     ...prev,
-                    daily_stylize_quota: event.target.value
+                    recording_window_days: event.target.value
                   }))
                 }
                 className="mt-1 w-full rounded-lg border border-bg-surface-light bg-bg-surface/70 px-3 py-2 text-sm text-text-primary"
@@ -541,53 +655,48 @@ export default function UsersPanel({ onToast }) {
               />
             </label>
             <label className="text-xs text-text-muted">
-              Ventana de grabación (días)
+              Cuota diaria stylize
               <input
                 type="number"
-                value={createForm.recording_window_days}
+                value={createForm.can_stylize_images ? createForm.daily_stylize_quota : "0"}
+                disabled={!createForm.can_stylize_images}
                 onChange={(event) =>
                   setCreateForm((prev) => ({
                     ...prev,
-                    recording_window_days: event.target.value
+                    daily_stylize_quota: event.target.value
                   }))
                 }
-                className="mt-1 w-full rounded-lg border border-bg-surface-light bg-bg-surface/70 px-3 py-2 text-sm text-text-primary"
+                className={`mt-1 w-full rounded-lg border border-bg-surface-light bg-bg-surface/70 px-3 py-2 text-sm text-text-primary ${
+                  !createForm.can_stylize_images ? "cursor-not-allowed opacity-50" : ""
+                }`}
               />
             </label>
           </div>
 
-          <div className="flex flex-wrap gap-6 text-xs text-text-secondary">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
+          <div className="flex flex-wrap gap-6">
+            <div className="flex items-center gap-3">
+              <Switch
                 checked={createForm.is_active}
-                onChange={(event) =>
-                  setCreateForm((prev) => ({ ...prev, is_active: event.target.checked }))
+                onChange={(value) =>
+                  setCreateForm((prev) => ({ ...prev, is_active: value }))
                 }
               />
-              Activo
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
+              <span className="text-xs text-text-secondary">Activo</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch
                 checked={createForm.can_stylize_images}
-                onChange={(event) =>
+                onChange={(value) =>
                   setCreateForm((prev) => ({
                     ...prev,
-                    can_stylize_images: event.target.checked
+                    can_stylize_images: value,
+                    daily_stylize_quota: value ? prev.daily_stylize_quota : ""
                   }))
                 }
               />
-              Puede estilizar imágenes
-            </label>
-          </div>
-
-          {createResult ? (
-            <div className="rounded-xl border border-accent/40 bg-accent/10 px-4 py-3 text-sm text-text-primary">
-              <div className="text-xs uppercase text-text-muted">Contraseña temporal</div>
-              <div className="mt-1 font-mono text-sm">{createResult.temp_password}</div>
+              <span className="text-xs text-text-secondary">Puede estilizar imágenes</span>
             </div>
-          ) : null}
+          </div>
 
           <div className="flex items-center justify-end gap-3">
             <button
@@ -595,64 +704,115 @@ export default function UsersPanel({ onToast }) {
               onClick={() => setCreateOpen(false)}
               className="rounded-lg border border-bg-surface-light px-4 py-2 text-xs font-semibold text-text-secondary"
             >
-              Cerrar
+              Cancelar
             </button>
             <button
               type="button"
-              onClick={createResult ? resetCreateForm : handleCreate}
+              onClick={handleCreate}
               disabled={createLoading}
               className="rounded-lg border border-accent bg-accent px-4 py-2 text-xs font-semibold text-white hover:bg-accent-light"
             >
-              {createResult ? "Crear otro" : createLoading ? "Creando..." : "Crear"}
+              {createLoading ? "Creando..." : "Crear"}
             </button>
           </div>
         </div>
       </Modal>
 
+      {/* Modal Éxito Crear Usuario */}
+      <Modal
+        open={createOpen && Boolean(createResult)}
+        title="Usuario creado"
+        onClose={() => {
+          setCreateOpen(false);
+          resetCreateForm();
+        }}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-text-secondary">
+            Usuario <span className="font-semibold text-text-primary">{createResult?.user?.username}</span> creado correctamente.
+          </p>
+          <PasswordDisplay password={createResult?.temp_password} onToast={onToast} />
+          <div className="flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setCreateOpen(false);
+                resetCreateForm();
+              }}
+              className="rounded-lg border border-bg-surface-light px-4 py-2 text-xs font-semibold text-text-secondary"
+            >
+              Cerrar
+            </button>
+            <button
+              type="button"
+              onClick={resetCreateForm}
+              className="rounded-lg border border-accent bg-accent px-4 py-2 text-xs font-semibold text-white hover:bg-accent-light"
+            >
+              Crear otro
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal Reset Contraseña */}
       <Modal
         open={Boolean(resetTarget)}
-        title="Reset contraseña"
+        title={resetResult ? "Contraseña reseteada" : "Reset contraseña"}
         onClose={() => {
           setResetTarget(null);
           setResetResult(null);
         }}
       >
         <div className="space-y-4 text-sm text-text-secondary">
-          <p>Se generará una nueva contraseña para {resetTarget?.username}.</p>
-          {resetResult ? (
-            <div className="rounded-xl border border-accent/40 bg-accent/10 px-4 py-3 text-sm text-text-primary">
-              <div className="text-xs uppercase text-text-muted">Contraseña temporal</div>
-              <div className="mt-1 font-mono text-sm">{resetResult.temp_password}</div>
-            </div>
-          ) : null}
-          <div className="flex items-center justify-end gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                setResetTarget(null);
-                setResetResult(null);
-              }}
-              className="rounded-lg border border-bg-surface-light px-4 py-2 text-xs font-semibold text-text-secondary"
-            >
-              Cerrar
-            </button>
-            {!resetResult ? (
-              <button
-                type="button"
-                onClick={handleResetPassword}
-                disabled={resetLoading}
-                className="rounded-lg border border-accent bg-accent px-4 py-2 text-xs font-semibold text-white hover:bg-accent-light"
-              >
-                {resetLoading ? "Reseteando..." : "Confirmar"}
-              </button>
-            ) : null}
-          </div>
+          {!resetResult ? (
+            <>
+              <p>Se generará una nueva contraseña para <span className="font-semibold text-text-primary">{resetTarget?.username}</span>.</p>
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setResetTarget(null);
+                    setResetResult(null);
+                  }}
+                  className="rounded-lg border border-bg-surface-light px-4 py-2 text-xs font-semibold text-text-secondary"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResetPassword}
+                  disabled={resetLoading}
+                  className="rounded-lg border border-accent bg-accent px-4 py-2 text-xs font-semibold text-white hover:bg-accent-light"
+                >
+                  {resetLoading ? "Reseteando..." : "Confirmar"}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p>Contraseña de <span className="font-semibold text-text-primary">{resetResult.user?.username}</span> reseteada correctamente.</p>
+              <PasswordDisplay password={resetResult.temp_password} onToast={onToast} />
+              <div className="flex items-center justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setResetTarget(null);
+                    setResetResult(null);
+                  }}
+                  className="rounded-lg border border-bg-surface-light px-4 py-2 text-xs font-semibold text-text-secondary"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </Modal>
 
+      {/* Modal Editar Usuario */}
       <Modal
-        open={Boolean(editTarget)}
-        title="Editar cuotas"
+        open={Boolean(editTarget) && !quotaResetResult}
+        title={`Editar usuario: ${editTarget?.username || ""}`}
         onClose={() => {
           setEditTarget(null);
           setEditForm(null);
@@ -660,109 +820,119 @@ export default function UsersPanel({ onToast }) {
         maxWidth="max-w-2xl"
       >
         <div className="space-y-5">
-          <div className="grid gap-3 md:grid-cols-2">
-            <label className="text-xs text-text-muted">
-              Cuota diaria stylize
-              <input
-                type="number"
-                value={editForm?.daily_stylize_quota ?? ""}
-                onChange={(event) =>
-                  setEditForm((prev) => ({
-                    ...prev,
-                    daily_stylize_quota: event.target.value
-                  }))
-                }
-                className="mt-1 w-full rounded-lg border border-bg-surface-light bg-bg-surface/70 px-3 py-2 text-sm text-text-primary"
-              />
-            </label>
-            <label className="text-xs text-text-muted">
-              Minutos de grabación
-              <input
-                type="number"
-                value={editForm?.recording_minutes_quota ?? ""}
-                onChange={(event) =>
-                  setEditForm((prev) => ({
-                    ...prev,
-                    recording_minutes_quota: event.target.value
-                  }))
-                }
-                className="mt-1 w-full rounded-lg border border-bg-surface-light bg-bg-surface/70 px-3 py-2 text-sm text-text-primary"
-              />
-            </label>
-            <label className="text-xs text-text-muted">
-              Ventana de grabación (días)
-              <input
-                type="number"
-                value={editForm?.recording_window_days ?? ""}
-                onChange={(event) =>
-                  setEditForm((prev) => ({
-                    ...prev,
-                    recording_window_days: event.target.value
-                  }))
-                }
-                className="mt-1 w-full rounded-lg border border-bg-surface-light bg-bg-surface/70 px-3 py-2 text-sm text-text-primary"
-              />
-            </label>
-            <label className="flex items-center gap-2 text-xs text-text-secondary">
-              <input
-                type="checkbox"
-                checked={Boolean(editForm?.can_stylize_images)}
-                onChange={(event) =>
-                  setEditForm((prev) => ({
-                    ...prev,
-                    can_stylize_images: event.target.checked
-                  }))
-                }
-              />
-              Puede estilizar imágenes
-            </label>
-          </div>
-
+          {/* Configuración */}
           <div className="rounded-xl border border-white/10 bg-bg-surface-light/30 p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted">
-              Ajuste de consumo
+              Configuración
             </p>
-            <div className="mt-3 flex flex-col gap-3">
-              <label className="flex items-center gap-2 text-xs text-text-secondary">
-                <input
-                  type="checkbox"
-                  checked={quotaForm.reset_stylize}
-                  onChange={(event) =>
-                    setQuotaForm((prev) => ({
+            <div className="mt-3 flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-text-secondary">Puede estilizar imágenes</span>
+                <Switch
+                  checked={Boolean(editForm?.can_stylize_images)}
+                  onChange={(value) =>
+                    setEditForm((prev) => ({
                       ...prev,
-                      reset_stylize: event.target.checked
+                      can_stylize_images: value,
+                      daily_stylize_quota: value ? prev.daily_stylize_quota : 0
                     }))
                   }
                 />
-                Reset stylize
-              </label>
-              <label className="flex items-center gap-2 text-xs text-text-secondary">
-                <input
-                  type="checkbox"
-                  checked={quotaForm.reset_recording}
-                  onChange={(event) =>
-                    setQuotaForm((prev) => ({
-                      ...prev,
-                      reset_recording: event.target.checked
-                    }))
-                  }
-                />
-                Reset grabación
-              </label>
+              </div>
               <label className="text-xs text-text-muted">
-                Extra stylizes
+                Ventana de grabación (días)
                 <input
                   type="number"
-                  value={quotaForm.extra_stylizes}
+                  value={editForm?.recording_window_days ?? ""}
                   onChange={(event) =>
-                    setQuotaForm((prev) => ({
+                    setEditForm((prev) => ({
                       ...prev,
-                      extra_stylizes: event.target.value
+                      recording_window_days: event.target.value
                     }))
                   }
                   className="mt-1 w-full rounded-lg border border-bg-surface-light bg-bg-surface/70 px-3 py-2 text-sm text-text-primary"
                 />
               </label>
+            </div>
+          </div>
+
+          {/* Cuota Stylize */}
+          <div className="rounded-xl border border-white/10 bg-bg-surface-light/30 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted">
+              Cuota Stylize
+            </p>
+            <div className="mt-3 space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-text-secondary">Usado / Total:</span>
+                <span className="font-semibold text-text-primary">
+                  {getEditStylizeUsed()} / {getEditStylizeLimit()}
+                </span>
+              </div>
+              <label className="text-xs text-text-muted">
+                Cuota diaria
+                <input
+                  type="number"
+                  value={editForm?.can_stylize_images ? (editForm?.daily_stylize_quota ?? "") : "0"}
+                  disabled={!editForm?.can_stylize_images}
+                  onChange={(event) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      daily_stylize_quota: event.target.value
+                    }))
+                  }
+                  className={`mt-1 w-full rounded-lg border border-bg-surface-light bg-bg-surface/70 px-3 py-2 text-sm text-text-primary ${
+                    !editForm?.can_stylize_images ? "cursor-not-allowed opacity-50" : ""
+                  }`}
+                />
+              </label>
+              <button
+                type="button"
+                disabled={!editForm?.can_stylize_images}
+                onClick={() => handleResetQuota("stylize")}
+                className={`w-full rounded-lg border border-accent/40 bg-accent/10 px-4 py-2 text-xs font-semibold text-accent ${
+                  !editForm?.can_stylize_images
+                    ? "cursor-not-allowed opacity-50"
+                    : "hover:bg-accent/20"
+                }`}
+              >
+                Reset stylize
+              </button>
+            </div>
+          </div>
+
+          {/* Cuota Grabación */}
+          <div className="rounded-xl border border-white/10 bg-bg-surface-light/30 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted">
+              Cuota Grabación
+            </p>
+            <div className="mt-3 space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-text-secondary">Usado / Total:</span>
+                <span className="font-semibold text-text-primary">
+                  {getEditRecordingUsed()} min / {getEditRecordingLimit()} min
+                </span>
+              </div>
+              <label className="text-xs text-text-muted">
+                Minutos de grabación
+                <input
+                  type="number"
+                  value={editForm?.recording_minutes_quota ?? ""}
+                  onChange={(event) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      recording_minutes_quota: event.target.value
+                    }))
+                  }
+                  className="mt-1 w-full rounded-lg border border-bg-surface-light bg-bg-surface/70 px-3 py-2 text-sm text-text-primary"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => handleResetQuota("recording")}
+                className="w-full rounded-lg border border-accent/40 bg-accent/10 px-4 py-2 text-xs font-semibold text-accent hover:bg-accent/20"
+              >
+                Reset grabación
+              </button>
             </div>
           </div>
 
@@ -789,6 +959,29 @@ export default function UsersPanel({ onToast }) {
         </div>
       </Modal>
 
+      {/* Modal Éxito Reset Cuota */}
+      <Modal
+        open={Boolean(quotaResetResult)}
+        title="Cuota reseteada"
+        onClose={() => setQuotaResetResult(null)}
+      >
+        <div className="space-y-4">
+          <div className="rounded-xl border border-success/40 bg-success/10 px-4 py-3">
+            <p className="text-sm text-text-primary">{quotaResetResult?.message}</p>
+          </div>
+          <div className="flex items-center justify-end">
+            <button
+              type="button"
+              onClick={() => setQuotaResetResult(null)}
+              className="rounded-lg border border-bg-surface-light px-4 py-2 text-xs font-semibold text-text-secondary"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal Confirmación */}
       <Modal
         open={Boolean(confirmAction)}
         title={confirmAction?.title}
