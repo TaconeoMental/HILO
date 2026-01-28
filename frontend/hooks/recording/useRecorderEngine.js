@@ -22,6 +22,7 @@ export function useRecorderEngine({
   const quotaExceededRef = useRef(false);
   const intervalRef = useRef(null);
   const chunkTimeoutRef = useRef(null);
+  const forceStopPromiseRef = useRef(null);
 
   const findMimeType = useCallback(() => {
     for (const type of MIME_TYPES) {
@@ -30,6 +31,24 @@ export function useRecorderEngine({
       }
     }
     return null;
+  }, []);
+
+  const waitForPendingChunks = useCallback((timeoutMs = 10000) => {
+    return new Promise((resolve) => {
+      const startedAt = Date.now();
+      const tick = () => {
+        if (pendingChunksRef.current <= 0) {
+          resolve();
+          return;
+        }
+        if (Date.now() - startedAt >= timeoutMs) {
+          resolve();
+          return;
+        }
+        setTimeout(tick, 50);
+      };
+      tick();
+    });
   }, []);
 
   const sendChunk = useCallback(
@@ -77,7 +96,6 @@ export function useRecorderEngine({
     [onChunkText, onQuotaExceeded]
   );
 
-  // Graba un chunk completo con su propio MediaRecorder
   const recordOneChunk = useCallback(
     (index, projectId) => {
       if (!isRecordingRef.current || quotaExceededRef.current) return;
@@ -125,7 +143,6 @@ export function useRecorderEngine({
       recorder.start();
       onChunkIndex?.(index + 1);
 
-      // Detener este chunk después de chunkDuration segundos
       chunkTimeoutRef.current = setTimeout(() => {
         if (recorder.state === "recording") {
           recorder.stop();
@@ -133,6 +150,19 @@ export function useRecorderEngine({
       }, chunkDuration * 1000);
     },
     [getAudioStream, chunkDuration, findMimeType, sendChunk, onChunkIndex]
+  );
+
+  const startNextChunk = useCallback(
+    (projectId) => {
+      if (!isRecordingRef.current || quotaExceededRef.current) {
+        return;
+      }
+
+      const nextIndex = chunkIndexRef.current;
+      chunkIndexRef.current += 1;
+      recordOneChunk(nextIndex, projectId);
+    },
+    [recordOneChunk]
   );
 
   const startChunkCycle = useCallback(
@@ -159,45 +189,102 @@ export function useRecorderEngine({
       isRecordingRef.current = true;
       quotaExceededRef.current = false;
 
-      // Función para iniciar cada chunk
-      const tick = () => {
-        if (!isRecordingRef.current || quotaExceededRef.current) {
-          return;
-        }
-        const currentIndex = chunkIndexRef.current;
-        chunkIndexRef.current += 1;
-        recordOneChunk(currentIndex, projectId);
-      };
-
-      // Primer chunk inmediatamente
-      tick();
-
-      // Siguientes chunks cada chunkDuration segundos
-      intervalRef.current = setInterval(tick, chunkDuration * 1000);
+      startNextChunk(projectId);
+      intervalRef.current = setInterval(
+        () => startNextChunk(projectId),
+        chunkDuration * 1000
+      );
     },
-    [getAudioStream, chunkDuration, findMimeType, recordOneChunk]
+    [getAudioStream, chunkDuration, findMimeType, startNextChunk]
   );
+
+  const forceStopCurrentChunk = useCallback(async () => {
+    if (!isRecordingRef.current) {
+      return Math.max(0, chunkIndexRef.current - 1);
+    }
+
+    if (forceStopPromiseRef.current) {
+      return forceStopPromiseRef.current;
+    }
+
+    const promise = (async () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+
+      if (chunkTimeoutRef.current) {
+        clearTimeout(chunkTimeoutRef.current);
+        chunkTimeoutRef.current = null;
+      }
+
+      const currentIndex = Math.max(0, chunkIndexRef.current - 1);
+      const recorder = recorderRef.current;
+
+      if (recorder && recorder.state === "recording") {
+        const flushPromise = new Promise((resolve) => {
+          const originalOnStop = recorder.onstop;
+          recorder.onstop = async (event) => {
+            if (originalOnStop) {
+              await originalOnStop(event);
+            }
+            resolve();
+          };
+        });
+
+        try {
+          recorder.requestData();
+        } catch (err) {
+          // ignore
+        }
+        recorder.stop();
+        await flushPromise;
+      }
+
+      await waitForPendingChunks();
+      recorderRef.current = null;
+      forceStopPromiseRef.current = null;
+      return currentIndex;
+    })();
+
+    forceStopPromiseRef.current = promise;
+    return promise;
+  }, [waitForPendingChunks]);
+
+  const resumeAfterPhoto = useCallback((projectId) => {
+    const targetProjectId = projectId || projectIdRef.current;
+    if (!targetProjectId) {
+      return;
+    }
+
+    if (quotaExceededRef.current) {
+      return;
+    }
+
+    isRecordingRef.current = true;
+    startNextChunk(targetProjectId);
+    intervalRef.current = setInterval(
+      () => startNextChunk(targetProjectId),
+      chunkDuration * 1000
+    );
+  }, [chunkDuration, startNextChunk]);
 
   const stopChunkCycle = useCallback(async (flush = true) => {
     isRecordingRef.current = false;
 
-    // Limpiar interval
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
 
-    // Limpiar timeout del chunk actual
     if (chunkTimeoutRef.current) {
       clearTimeout(chunkTimeoutRef.current);
       chunkTimeoutRef.current = null;
     }
 
-    // Detener el recorder actual si está grabando
     const recorder = recorderRef.current;
     if (recorder && recorder.state === "recording") {
       if (flush) {
-        // Solicitar datos pendientes antes de detener
         try {
           recorder.requestData();
         } catch (err) {
@@ -208,30 +295,28 @@ export function useRecorderEngine({
     }
     recorderRef.current = null;
 
-    // Si no hay flush (descartando), no esperar chunks pendientes
     if (!flush) {
       return;
     }
 
-    // Esperar a que todos los chunks pendientes se envíen
-    return new Promise((resolve) => {
-      const check = () => {
-        if (pendingChunksRef.current <= 0) {
-          resolve();
-        } else {
-          setTimeout(check, 100);
-        }
-      };
-      // Dar tiempo para que el onstop se procese
-      setTimeout(check, 200);
-    });
-  }, []);
+    await waitForPendingChunks(15000);
+  }, [waitForPendingChunks]);
 
   const isQuotaExceeded = useCallback(() => quotaExceededRef.current, []);
+
+  const getCurrentChunkIndex = useCallback(() => {
+    return Math.max(0, chunkIndexRef.current - 1);
+  }, []);
+
+  const getProjectId = useCallback(() => projectIdRef.current, []);
 
   return {
     startChunkCycle,
     stopChunkCycle,
+    forceStopCurrentChunk,
+    resumeAfterPhoto,
+    getCurrentChunkIndex,
+    getProjectId,
     pendingChunks,
     isQuotaExceeded
   };

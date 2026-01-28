@@ -54,14 +54,6 @@ export function useRecorder() {
     return timers.elapsedSeconds * 1000;
   }, [timers.elapsedSeconds]);
 
-  const photos = usePhotos({
-    projectId,
-    videoRef,
-    stylize: stylizePhotos,
-    onQuotaExceeded: handleQuotaExceeded,
-    getElapsedMs
-  });
-
   const getAudioStream = useCallback(() => {
     const currentStream = media.getStream?.();
     if (!currentStream) return null;
@@ -79,6 +71,15 @@ export function useRecorder() {
       setChunkIndex(nextIndex);
     },
     onQuotaExceeded: handleQuotaExceeded
+  });
+
+  const photos = usePhotos({
+    projectId,
+    videoRef,
+    stylize: stylizePhotos,
+    onQuotaExceeded: handleQuotaExceeded,
+    getElapsedMs,
+    engine
   });
 
   // Mantener projectIdRef actualizada

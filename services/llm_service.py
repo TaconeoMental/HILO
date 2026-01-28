@@ -60,47 +60,44 @@ def generate_script_with_usage(transcript_with_markers, participant_name="ACTOR"
 
 def insert_photo_markers(transcript, photos, chunks):
     """
-    Inserta marcadores [[FOTO:<id>]] en la transcripción según timestamps.
+    Inserta marcadores [[FOTO:<id>]] en la transcripción según el índice de chunk.
 
-    Para cada foto (ordenadas por t_ms):
-    - Insertar después del chunk cuyo tiempo final sea <= photo.t_ms
+    Cada foto incluye el campo after_chunk_index que indica después de qué chunk
+    debe insertarse. Los chunks y fotos se ordenan para mantener la secuencia de
+    la grabación.
     """
     if not photos:
         return transcript
 
-    # Calcular tiempos acumulados por chunk
-    chunk_times = []
-    accumulated_ms = 0
-    chunk_duration_ms = Config.CHUNK_DURATION * 1000
+    # Mapear fotos por índice de chunk
+    photos_by_chunk = {}
+    for photo in sorted(
+        photos,
+        key=lambda p: (p.get("after_chunk_index", -1), p.get("t_ms", 0))
+    ):
+        idx = photo.get("after_chunk_index")
+        if idx is None:
+            # Si no hay índice, agregar al final
+            idx = -1
+        photos_by_chunk.setdefault(idx, []).append(photo)
 
-    for i, chunk in enumerate(chunks):
-        t0 = accumulated_ms
-        t1 = accumulated_ms + chunk_duration_ms
-        chunk_times.append({
-            "index": i,
-            "t0_ms": t0,
-            "t1_ms": t1,
-            "text": chunk.get("text", "")
-        })
-        accumulated_ms = t1
-
-    # Construir transcripción con marcadores
     result_parts = []
-    photo_queue = list(photos)
+    sorted_chunks = sorted(chunks, key=lambda c: c.get("index", 0))
 
-    for ct in chunk_times:
-        result_parts.append(ct["text"])
+    for chunk in sorted_chunks:
+        chunk_index = chunk.get("index", 0)
+        chunk_text = chunk.get("text", "")
+        if chunk_text:
+            result_parts.append(chunk_text)
 
-        # Insertar fotos cuyo t_ms <= t1_ms de este chunk
-        while photo_queue and photo_queue[0]["t_ms"] <= ct["t1_ms"]:
-            photo = photo_queue.pop(0)
+        for photo in photos_by_chunk.get(chunk_index, []):
             result_parts.append(f" [[FOTO:{photo['photo_id']}]] ")
 
-    # Insertar fotos restantes al final
-    for photo in photo_queue:
+    # Fotos que no tengan índice asociado se agregan al final
+    for photo in photos_by_chunk.get(-1, []):
         result_parts.append(f" [[FOTO:{photo['photo_id']}]] ")
 
-    return " ".join(result_parts)
+    return " ".join(part for part in result_parts if part)
 
 
 def replace_markers_with_images(script, photos):

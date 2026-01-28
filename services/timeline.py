@@ -27,18 +27,24 @@ def save_timeline(project_id, timeline):
             json.dump(timeline, f, indent=2, ensure_ascii=False)
 
 
-def add_photo(project_id, photo_id, t_ms, original_path, stylized_path=None):
+def add_photo(project_id, photo_id, t_ms, original_path, stylized_path=None, after_chunk_index=None):
     timeline = load_timeline(project_id)
 
     photo_entry = {
         "photo_id": photo_id,
         "t_ms": t_ms,
+        "after_chunk_index": after_chunk_index,
         "original_path": original_path,
         "stylized_path": stylized_path
     }
 
     timeline["photos"].append(photo_entry)
-    timeline["photos"].sort(key=lambda x: x["t_ms"])
+    timeline["photos"].sort(
+        key=lambda x: (
+            x.get("after_chunk_index", float("inf")),
+            x.get("t_ms", 0)
+        )
+    )
 
     save_timeline(project_id, timeline)
     return photo_entry

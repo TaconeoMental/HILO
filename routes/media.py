@@ -11,14 +11,10 @@ from logger import get_logger
 from models import PhotoEvent
 from services import project_store, timeline
 from services.audio_convert import webm_to_wav, FFmpegNotFoundError, ConversionError
-from services.stt_whisper import transcribe_wav
 
 log = get_logger("media")
 
 media_bp = Blueprint('media', __name__)
-
-
-MAX_CHUNK_SIZE = 5 * 1024 * 1024  # 5MB
 
 
 @media_bp.route("/api/audio/chunk", methods=["POST"])
@@ -67,7 +63,7 @@ def audio_chunk():
     file_content = file.read()
     file_size = len(file_content)
 
-    if file_size > MAX_CHUNK_SIZE:
+    if file_size > Config.MAX_CHUNK_SIZE:
         return jsonify({"ok": False, "error": "chunk demasiado grande"}), 400
 
     if file_size < 100:
@@ -87,19 +83,18 @@ def audio_chunk():
     except ConversionError as e:
         return jsonify({"ok": False, "error": f"falló la conversión: {str(e)}"}), 500
 
-    text = transcribe_wav(wav_path)
-    log.info(f"Chunk {chunk_index} transcrito: {len(text)} chars")
-
     try:
         project_store.append_chunk_result(
             project_id,
             chunk_index,
             webm_path,
             wav_path,
-            text
+            ""
         )
     except ValueError as e:
         return jsonify({"ok": False, "error": str(e)}), 403
+
+    log.info(f"Chunk {chunk_index} almacenado para proyecto {project_id}")
 
     return jsonify({
         "ok": True,
@@ -116,6 +111,7 @@ def upload_photo():
     photo_id = data.get("photo_id")
     t_ms = data.get("t_ms")
     data_url = data.get("data_url")
+    after_chunk_index = data.get("after_chunk_index")
 
     if not project_id:
         return jsonify({"ok": False, "error": "project_id requerido"}), 400
@@ -166,7 +162,20 @@ def upload_photo():
     with open(photo_path, "wb") as f:
         f.write(image_data)
 
-    timeline.add_photo(project_id, photo_id, t_ms, photo_path)
+    timeline.add_photo(
+        project_id,
+        photo_id,
+        t_ms,
+        photo_path,
+        after_chunk_index=after_chunk_index
+    )
+
+    log.info(
+        "Foto %s registrada para proyecto %s después del chunk %s",
+        photo_id,
+        project_id,
+        after_chunk_index if after_chunk_index is not None else "?"
+    )
 
     db = Session()
     try:
@@ -181,5 +190,13 @@ def upload_photo():
     return jsonify({
         "ok": True,
         "photo_id": photo_id,
-        "t_ms": t_ms
+        "t_ms": t_ms,
+        "after_chunk_index": after_chunk_index
     })
+    if after_chunk_index is not None:
+        try:
+            after_chunk_index = int(after_chunk_index)
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "error": "after_chunk_index debe ser entero"}), 400
+        if after_chunk_index < 0:
+            return jsonify({"ok": False, "error": "after_chunk_index inválido"}), 400

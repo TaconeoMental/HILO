@@ -5,14 +5,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def _build_database_url():
-    user = os.getenv("POSTGRES_USER", "")
-    password = os.getenv("POSTGRES_PASSWORD", "")
+    user = os.getenv("POSTGRES_USER", "hilo")
+    password = os.getenv("POSTGRES_PASSWORD", "hilo.pass")
     host = os.getenv("POSTGRES_HOST", "db")
     port = os.getenv("POSTGRES_PORT", "5432")
-    database = os.getenv("POSTGRES_DB", "")
-
-    if not all([user, password, database]):
-        return "postgresql+psycopg://hilo:hilo_dev_password@db:5432/hilo"
+    database = os.getenv("POSTGRES_DB", "hilo")
 
     return (
         f"postgresql+psycopg://{user}:{password}@{host}:{port}/{database}"
@@ -43,10 +40,23 @@ class Config:
     WHISPER_LANGUAGE = os.getenv("WHISPER_LANGUAGE", "es")
     CHUNK_DURATION = int(os.getenv("CHUNK_DURATION", "5"))
 
+    _CPU_COUNT = max(1, os.cpu_count() or 1)
+
+    TRANSCRIBE_PARALLEL_WORKERS = min(
+        int(os.getenv("TRANSCRIBE_PARALLEL_WORKERS", "4")),
+        _CPU_COUNT
+    )
+    STYLIZE_PARALLEL_WORKERS = min(
+        int(os.getenv("STYLIZE_PARALLEL_WORKERS", "4")),
+        _CPU_COUNT
+    )
+    TRANSCRIBE_CHUNK_TIMEOUT = int(os.getenv("TRANSCRIBE_CHUNK_TIMEOUT", "30"))
+    STYLIZE_PHOTO_TIMEOUT = int(os.getenv("STYLIZE_PHOTO_TIMEOUT", "60"))
+
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
     LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
     IMAGE_STYLE_ENABLED = (
         os.getenv("IMAGE_STYLE_ENABLED", "false").lower() == "true"
     )
-    STYLIZE_PARALLEL_WORKERS = int(os.getenv("STYLIZE_PARALLEL_WORKERS", "2"))
     MAX_IMAGE_SIZE = int(os.getenv("MAX_IMAGE_SIZE", str(2 * 1024 * 1024)))
+    MAX_CHUNK_SIZE = int(os.getenv("MAX_CHUNK_SIZE", str(5 * 1024 * 1024)))

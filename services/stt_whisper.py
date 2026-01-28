@@ -37,9 +37,6 @@ def transcribe_wav(wav_path):
             fp16=False
         )
 
-        detected = result.get("language", "?")
-        log.debug(f"Idioma detectado: {detected}")
-
         return result.get("text", "").strip()
 
     except Exception as e:
