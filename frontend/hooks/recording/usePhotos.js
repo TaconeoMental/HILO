@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 
-export function usePhotos({ projectId, videoRef, stylize, onQuotaExceeded }) {
+export function usePhotos({ projectId, videoRef, stylize, onQuotaExceeded, getElapsedMs }) {
   const [photos, setPhotos] = useState([]);
   const [photoDelay, setPhotoDelay] = useState(0);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -29,7 +29,7 @@ export function usePhotos({ projectId, videoRef, stylize, onQuotaExceeded }) {
       const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
 
       const photoId = crypto.randomUUID();
-      const tMs = Date.now();
+      const tMs = getElapsedMs ? getElapsedMs() : Date.now();
       const res = await fetch("/api/photo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -60,7 +60,7 @@ export function usePhotos({ projectId, videoRef, stylize, onQuotaExceeded }) {
     } finally {
       setIsCapturing(false);
     }
-  }, [projectId, videoRef, stylize, isCapturing, onQuotaExceeded]);
+  }, [projectId, videoRef, stylize, isCapturing, onQuotaExceeded, getElapsedMs]);
 
   const captureWithDelay = useCallback(() => {
     if (quotaExceededRef.current) return;

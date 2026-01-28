@@ -12,6 +12,7 @@ from config import Config
 from extensions import Session
 from logger import get_logger
 from models import Project, ProjectEvent, utcnow
+from services import timeline
 
 log = get_logger("project")
 
@@ -378,14 +379,8 @@ def list_projects(user_id, limit=10, offset=0, query=None, status=None):
         project_id = str(record.id)
         state = load_state(project_id) or {}
 
-        project_dir = get_project_dir(project_id)
-        photos_dir = os.path.join(project_dir, "photos")
-        photo_count = 0
-        if os.path.exists(photos_dir):
-            photo_count = len([
-                f for f in os.listdir(photos_dir)
-                if f.endswith((".jpg", ".jpeg", ".png"))
-            ])
+        photos = timeline.get_photos(project_id)
+        photo_count = len(photos)
 
         created_at = state.get("created_at")
         if not created_at and record.created_at:
@@ -411,18 +406,11 @@ def list_projects(user_id, limit=10, offset=0, query=None, status=None):
             "participant_name": participant_name,
             "created_at": created_at,
             "expires_at": record.expires_at.isoformat() if record.expires_at else None,
-            "stopped_at": state.get("stopped_at"),
             "status": project_status,
             "is_active": project_status == "recording",
-            "job_id": str(record.job_id) if record.job_id else None,
             "job_status": job_status,
-            "output_file": record.output_file,
-            "fallback_file": record.fallback_file,
-            "error_message": record.error_message,
             "stylize_errors": record.stylize_errors or 0,
-            "chunk_count": len(state.get("chunks", [])),
             "photo_count": photo_count,
-            "transcript_length": len(state.get("transcript", "")),
             "recording_duration_seconds": state.get("recording_duration_seconds")
         })
     total = len(projects)
