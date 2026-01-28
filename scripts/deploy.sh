@@ -28,8 +28,19 @@ case "$MODE" in
     ;;
   prod)
     if [[ "$ACTION" == "down" ]]; then
-      docker compose -f "$ROOT_DIR/docker-compose.prod.yml" stop frontend
+      docker compose -f "$ROOT_DIR/docker-compose.prod.yml" down
       exit 0
+    fi
+
+    if [[ ! -f "$ROOT_DIR/.env" ]]; then
+      echo "Error: .env no existe. Copia env.example y configura los valores de producción."
+      exit 1
+    fi
+
+    if [[ ! -f "$ROOT_DIR/infra/certs/origin.crt.pem" || ! -f "$ROOT_DIR/infra/certs/origin.key.pem" ]]; then
+      echo "Error: Certificados SSL no encontrados en infra/certs/"
+      echo "Se requieren: origin.crt.pem y origin.key.pem"
+      exit 1
     fi
 
     docker compose -f "$ROOT_DIR/docker-compose.prod.yml" up -d --build
