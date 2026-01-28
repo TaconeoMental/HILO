@@ -50,11 +50,16 @@ export function useRecorder() {
     onLimitReached: handleQuotaExceeded
   });
 
+  const getElapsedMs = useCallback(() => {
+    return timers.elapsedSeconds * 1000;
+  }, [timers.elapsedSeconds]);
+
   const photos = usePhotos({
     projectId,
     videoRef,
     stylize: stylizePhotos,
-    onQuotaExceeded: handleQuotaExceeded
+    onQuotaExceeded: handleQuotaExceeded,
+    getElapsedMs
   });
 
   const getAudioStream = useCallback(() => {
