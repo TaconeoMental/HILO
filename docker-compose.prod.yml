@@ -49,7 +49,7 @@ services:
     networks:
       - internal_net
 
-  worker:
+  worker-audio:
     build: .
     environment:
       - FLASK_ENV=production
@@ -57,7 +57,61 @@ services:
       - .env
     volumes:
       - ./data:/app/data
-    command: python worker.py
+    command: python worker.py --queues ${RQ_AUDIO_QUEUE}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - internal_net
+
+  worker-transcribe:
+    build: .
+    environment:
+      - FLASK_ENV=production
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    command: python worker.py --queues ${RQ_TRANSCRIBE_QUEUE}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - internal_net
+
+  worker-photos:
+    build: .
+    environment:
+      - FLASK_ENV=production
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    command: python worker.py --queues ${RQ_PHOTO_QUEUE}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - internal_net
+
+  worker-llm:
+    build: .
+    environment:
+      - FLASK_ENV=production
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    command: python worker.py --queues ${RQ_LLM_QUEUE}
     depends_on:
       db:
         condition: service_healthy

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import ToastList from "@/components/common/ToastList";
+import ScriptPreview from "@/components/Results/ScriptPreview";
 
 const POLL_INTERVAL = 2000;
 
@@ -20,7 +21,6 @@ export default function ResultClient({
   const [previewHtml, setPreviewHtml] = useState("");
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState("");
-  const [theme, setTheme] = useState("light");
   const [toasts, setToasts] = useState([]);
   const previewRef = useRef(null);
 
@@ -105,10 +105,17 @@ export default function ResultClient({
 
   const copyPreview = async () => {
     if (!previewRef.current) return;
+    const html = previewRef.current.innerHTML;
     const text = previewRef.current.innerText;
     try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(text);
+      if (navigator.clipboard?.write) {
+        const blobInput = new ClipboardItem({
+          "text/html": new Blob([html], { type: "text/html" }),
+          "text/plain": new Blob([text], { type: "text/plain" })
+        });
+        await navigator.clipboard.write([blobInput]);
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(html);
       } else {
         const range = document.createRange();
         range.selectNodeContents(previewRef.current);
@@ -195,46 +202,18 @@ export default function ResultClient({
       <div className="mx-auto w-full max-w-4xl rounded-3xl border border-bg-surface-light bg-bg-surface/70 px-6 py-6 shadow-xl">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <h2 className="text-lg font-semibold text-text-primary">Vista previa</h2>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setTheme("light")}
-              className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                theme === "light"
-                  ? "border-accent/50 bg-accent/10 text-accent"
-                  : "border-bg-surface-light text-text-secondary"
-              }`}
-            >
-              Claro
-            </button>
-            <button
-              type="button"
-              onClick={() => setTheme("dark")}
-              className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                theme === "dark"
-                  ? "border-accent/50 bg-accent/10 text-accent"
-                  : "border-bg-surface-light text-text-secondary"
-              }`}
-            >
-              Oscuro
-            </button>
-          </div>
         </div>
 
         <div
           ref={previewRef}
-          className={`mt-4 rounded-2xl border border-bg-surface-light px-5 py-6 text-sm ${
-            theme === "light"
-              ? "bg-white text-black"
-              : "bg-bg-primary text-text-primary"
-          }`}
+          className="mt-4 rounded-2xl border border-black/10 bg-white px-5 py-6 text-sm text-black"
         >
           {previewLoading ? (
             <p className="text-text-muted">Cargando...</p>
           ) : previewError ? (
             <p className="text-error">{previewError}</p>
           ) : (
-            <div dangerouslySetInnerHTML={{ __html: previewHtml || "" }} />
+            <ScriptPreview html={previewHtml} />
           )}
         </div>
       </div>

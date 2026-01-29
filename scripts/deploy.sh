@@ -11,6 +11,26 @@ fi
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+load_env() {
+  if [[ -f "$ROOT_DIR/.env" ]]; then
+    set -a
+    # shellcheck disable=SC1090
+    source "$ROOT_DIR/.env"
+    set +a
+  fi
+}
+
+compose_up() {
+  local compose_file="$1"
+  shift
+  docker compose -f "$compose_file" up -d --build \
+    --scale worker-audio=${WORKERS_AUDIO:-1} \
+    --scale worker-transcribe=${WORKERS_TRANSCRIBE:-1} \
+    --scale worker-photos=${WORKERS_PHOTO:-1} \
+    --scale worker-llm=${WORKERS_LLM:-1} \
+    "$@"
+}
+
 case "$MODE" in
   dev)
     if [[ "$ACTION" == "down" ]]; then
@@ -22,7 +42,8 @@ case "$MODE" in
       cp "$ROOT_DIR/env.example" "$ROOT_DIR/.env"
     fi
 
-    docker compose -f "$ROOT_DIR/docker-compose.yml" up -d --build
+    load_env
+    compose_up "$ROOT_DIR/docker-compose.yml"
 
     "$ROOT_DIR/scripts/manage.sh" dev migrate
     ;;
@@ -43,7 +64,8 @@ case "$MODE" in
       exit 1
     fi
 
-    docker compose -f "$ROOT_DIR/docker-compose.prod.yml" up -d --build
+    load_env
+    compose_up "$ROOT_DIR/docker-compose.prod.yml"
     docker compose -f "$ROOT_DIR/docker-compose.prod.yml" exec backend alembic upgrade head
     ;;
   *)

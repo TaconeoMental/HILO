@@ -156,7 +156,12 @@ def convert_script_to_html(content, project_id):
                 mime = get_mime_type(filename) or 'image/jpeg'
 
                 data_url = f'data:{mime};base64,{b64_data}'
-                html_parts.append(f'<div style="text-align: center; margin: 1em 0;"><img src="{data_url}" alt="{alt}" style="max-width: 40%; border-radius: 8px;"></div>')
+                html_parts.append(
+                    '<div style="display: flex; justify-content: center; margin: 1em 0;">'
+                    f'<img src="{data_url}" alt="{alt}" '
+                    'style="max-width: 55%; border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,0.18);" />'
+                    '</div>'
+                )
             else:
                 html_parts.append(f'<div style="text-align: center; margin: 1em 0; padding: 2em; background: #333; border-radius: 8px; color: #999;">[Imagen no encontrada: {alt}]</div>')
             continue

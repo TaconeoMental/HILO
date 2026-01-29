@@ -29,6 +29,10 @@ class Config:
     RQ_PHOTO_QUEUE = os.getenv("RQ_PHOTO_QUEUE", "hilo_photos")
     RQ_LLM_QUEUE = os.getenv("RQ_LLM_QUEUE", "hilo_llm")
     RQ_QUEUE_NAME = os.getenv("RQ_QUEUE_NAME", RQ_LLM_QUEUE)
+    WORKERS_AUDIO = int(os.getenv("WORKERS_AUDIO", "1"))
+    WORKERS_TRANSCRIBE = int(os.getenv("WORKERS_TRANSCRIBE", "1"))
+    WORKERS_PHOTO = int(os.getenv("WORKERS_PHOTO", "1"))
+    WORKERS_LLM = int(os.getenv("WORKERS_LLM", "1"))
 
     SESSION_LIFETIME_DAYS = int(os.getenv("SESSION_LIFETIME_DAYS", "1"))
     PERMANENT_SESSION_LIFETIME = timedelta(days=SESSION_LIFETIME_DAYS)

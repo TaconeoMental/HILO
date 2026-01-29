@@ -47,7 +47,7 @@ services:
       - redis_data:/data
     command: redis-server --appendonly yes
 
-  worker:
+  worker-audio:
     build: .
     volumes:
       - .:/app
@@ -56,7 +56,55 @@ services:
       - FLASK_ENV=development
     env_file:
       - .env
-    command: python worker.py
+    command: python worker.py --queues ${RQ_AUDIO_QUEUE}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  worker-transcribe:
+    build: .
+    volumes:
+      - .:/app
+      - /app/.venv
+    environment:
+      - FLASK_ENV=development
+    env_file:
+      - .env
+    command: python worker.py --queues ${RQ_TRANSCRIBE_QUEUE}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  worker-photos:
+    build: .
+    volumes:
+      - .:/app
+      - /app/.venv
+    environment:
+      - FLASK_ENV=development
+    env_file:
+      - .env
+    command: python worker.py --queues ${RQ_PHOTO_QUEUE}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  worker-llm:
+    build: .
+    volumes:
+      - .:/app
+      - /app/.venv
+    environment:
+      - FLASK_ENV=development
+    env_file:
+      - .env
+    command: python worker.py --queues ${RQ_LLM_QUEUE}
     depends_on:
       db:
         condition: service_healthy
