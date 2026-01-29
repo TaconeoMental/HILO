@@ -21,6 +21,6 @@ def enqueue_processing_pipeline(project_id):
         retry=retry
     )
     project_store.update_processing_jobs(project_id, {"prepare": job.id})
-    project_store.update_project_status(project_id, "queued", job_id=job.id)
+    project_store.update_project_status(project_id, status="queued", job_id=job.id)
     log.info("Proyecto %s en cola (prepare job %s)", project_id, job.id)
     return job

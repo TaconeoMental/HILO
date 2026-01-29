@@ -219,6 +219,7 @@ export default function RecorderShell() {
         onDelayMinus={recorder.decreaseDelay}
         onDelayPlus={recorder.increaseDelay}
         stylize={recorder.stylizePhotos}
+        stylizeAllowed={recorder.stylizeAllowed}
         onStylizeToggle={recorder.toggleStylize}
         onClose={recorder.toggleSettings}
         participantName={recorder.participantName}

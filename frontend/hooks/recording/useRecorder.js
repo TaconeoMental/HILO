@@ -19,6 +19,7 @@ export function useRecorder() {
   const [participantName, setParticipantName] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [stylizePhotos, setStylizePhotos] = useState(true);
+  const [stylizeAllowed, setStylizeAllowed] = useState(true);
   const [statusLabel, setStatusLabel] = useState("Detenido");
   const toastHandlerRef = useRef(null);
   const previewInitRef = useRef(false);
@@ -164,6 +165,12 @@ export function useRecorder() {
   }, [stylizePhotos]);
 
   useEffect(() => {
+    if (!stylizeAllowed && stylizePhotos) {
+      setStylizePhotos(false);
+    }
+  }, [stylizeAllowed, stylizePhotos]);
+
+  useEffect(() => {
     if (state.status === "recording") {
       setStatusLabel("Grabando");
     } else if (state.status === "paused") {
@@ -287,6 +294,11 @@ export function useRecorder() {
       setProjectId(newProjectId);
       projectIdRef.current = newProjectId;
       quotas.updateFromStart(data);
+      const allowStylize = data.stylize_allowed !== false;
+      setStylizeAllowed(allowStylize);
+      if (!allowStylize) {
+        setStylizePhotos(false);
+      }
       photos.setPhotos([]);
       photos.setQuotaExceeded(false);
       timers.start();
@@ -553,8 +565,12 @@ export function useRecorder() {
     photoCountdownActive: photos.countdownActive,
     photoCountdownValue: photos.countdownValue,
     photoFlashKey: photos.flashKey,
+    stylizeAllowed,
     stylizePhotos,
-    toggleStylize: () => setStylizePhotos((prev) => !prev),
+    toggleStylize: () => {
+      if (!stylizeAllowed) return;
+      setStylizePhotos((prev) => !prev);
+    },
     // Video/Preview
     videoRef,
     canvasRef,

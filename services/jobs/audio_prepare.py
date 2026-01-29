@@ -55,16 +55,12 @@ def prepare_project_job(project_id):
     photos = timeline.get_photos(project_id)
     segments = _slice_segments(full_wav, segments_dir, duration_ms, photos)
 
-    state["segments"] = segments
-    progress = state.get("progress", {})
-    progress.update({
-        "segments_total": len(segments),
-        "segments_done": 0,
-        "photos_total": len(photos) if state.get("stylize_photos", True) else 0,
+    project_store.replace_segments(project_id, segments)
+    stylize_enabled = state.get("stylize_photos", True)
+    project_store.update_state_fields(project_id, {
+        "photos_total": len(photos) if stylize_enabled else 0,
         "photos_done": len([p for p in photos if p.get("stylized_path")])
     })
-    state["progress"] = progress
-    project_store.save_state(project_id, state)
 
     current_job = get_current_job()
     retry_fast = Retry(max=2, interval=[10, 30])
@@ -116,7 +112,7 @@ def prepare_project_job(project_id):
         "finalize": finalize_job.id
     }
     project_store.set_processing_jobs(project_id, jobs_state)
-    project_store.update_project_status(project_id, "processing", job_id=finalize_job.id)
+    project_store.update_project_status(project_id, status="processing", job_id=finalize_job.id)
     log.info(
         "Proyecto %s: %d segmentos, %d fotos encoladas",
         project_id,

@@ -108,7 +108,7 @@ export default function ResultClient({
     const html = previewRef.current.innerHTML;
     const text = previewRef.current.innerText;
     try {
-      if (navigator.clipboard?.write) {
+      if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
         const blobInput = new ClipboardItem({
           "text/html": new Blob([html], { type: "text/html" }),
           "text/plain": new Blob([text], { type: "text/plain" })

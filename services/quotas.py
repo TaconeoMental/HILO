@@ -1,7 +1,5 @@
 from datetime import timedelta
 
-from datetime import timedelta
-
 from extensions import Session
 from logger import get_logger
 from models import User, utcnow
@@ -195,5 +193,37 @@ def _reserve_quota(
             log.info(f"Reserva de cuota {label}: user={user.id} reason={reason}")
 
         return True, None
+    finally:
+        Session.remove()
+
+
+def has_stylize_quota(user_id):
+    db = Session()
+    try:
+        user = db.query(User).filter_by(id=user_id).first()
+        if not user:
+            return False
+        if user.is_admin:
+            return True
+        if not user.can_stylize_images:
+            return False
+
+        quota_value = user.daily_stylize_quota
+        if quota_value is None:
+            return True
+        try:
+            quota_value = int(quota_value)
+        except (TypeError, ValueError):
+            return False
+        if quota_value <= 0:
+            return False
+
+        now = utcnow()
+        started_at = user.stylize_window_started_at
+        used = user.stylizes_used_in_window or 0
+        if not started_at or now - started_at >= timedelta(hours=WINDOW_HOURS):
+            used = 0
+
+        return used < quota_value
     finally:
         Session.remove()

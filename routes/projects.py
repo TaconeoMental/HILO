@@ -42,6 +42,10 @@ def project_start():
                         "recording_window_days": recording_quota.get("window_days")
                     }), 403
 
+        stylize_allowed = True
+        if not current_user.is_admin:
+            stylize_allowed = quotas.has_stylize_quota(current_user.id)
+
         project_id = project_store.create_project(
             current_user.id,
             project_name,
@@ -95,7 +99,8 @@ def project_start():
             "recording_window_days": (
                 recording_quota.get("window_days")
                 if recording_quota else None
-            )
+            ),
+            "stylize_allowed": stylize_allowed
         })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
@@ -205,7 +210,7 @@ def project_stop():
         if project_store.project_exists(project_id):
             project_store.update_project_status(
                 project_id,
-                "error",
+                status="error",
                 error_message=str(e)
             )
         return jsonify({"ok": False, "error": str(e)}), 500

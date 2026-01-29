@@ -8,6 +8,7 @@ export default function SettingsPanel({
   onDelayMinus,
   onDelayPlus,
   stylize,
+  stylizeAllowed = true,
   onStylizeToggle,
   onClose,
   participantName,
@@ -72,26 +73,28 @@ export default function SettingsPanel({
             </button>
             <span className="text-xs text-text-muted">Timer (seg)</span>
           </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <SparklesIcon className="h-5 w-5 text-text-secondary" />
-              <span className="text-sm text-text-secondary">Estilizar como dibujo</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <SparklesIcon className="h-5 w-5 text-text-secondary" />
+                <span className="text-sm text-text-secondary">Estilizar como dibujo</span>
+              </div>
+              <button
+                type="button"
+                onClick={stylizeAllowed ? onStylizeToggle : undefined}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
+                  stylize && stylizeAllowed ? "bg-accent" : "bg-bg-surface-light"
+                } ${!stylizeAllowed ? "cursor-not-allowed opacity-60" : ""}`}
+                aria-pressed={stylize && stylizeAllowed}
+                aria-disabled={!stylizeAllowed}
+                disabled={!stylizeAllowed}
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
+                    stylize && stylizeAllowed ? "translate-x-5" : "translate-x-1"
+                  }`}
+                />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={onStylizeToggle}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
-                stylize ? "bg-accent" : "bg-bg-surface-light"
-              }`}
-              aria-pressed={stylize}
-            >
-              <span
-                className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
-                  stylize ? "translate-x-5" : "translate-x-1"
-                }`}
-              />
-            </button>
-          </div>
         </div>
       </div>
     </div>

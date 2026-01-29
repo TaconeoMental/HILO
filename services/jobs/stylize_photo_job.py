@@ -49,9 +49,4 @@ def stylize_photo_job(project_id, photo_id):
         return
 
     timeline.update_photo_stylized(project_id, photo_id, stylized_path)
-    fresh_state = project_store.load_state(project_id) or {}
-    progress = fresh_state.get("progress", {})
-    progress["photos_done"] = progress.get("photos_done", 0) + 1
-    fresh_state["progress"] = progress
-    project_store.save_state(project_id, fresh_state)
     log.info("Foto %s estilizada en %.2fs", photo_id, elapsed)

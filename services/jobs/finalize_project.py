@@ -57,13 +57,14 @@ def finalize_project_job(project_id):
         fh.write(final_script)
 
     metrics = _build_metrics(ordered_segments, photos, llm_time)
-    state["processing_metrics"] = metrics
-    state["transcript"] = transcript
-    project_store.save_state(project_id, state)
+    project_store.update_state_fields(project_id, {
+        "processing_metrics": metrics,
+        "transcript": transcript
+    })
 
     project_store.update_project_status(
         project_id,
-        "done",
+        status="done",
         output_file="script.md",
         fallback_file="transcript_raw.txt",
         stylize_errors=max(0, metrics.get("photos_total", 0) - metrics.get("photos_processed", 0)),

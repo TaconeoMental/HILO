@@ -10,12 +10,7 @@ log = get_logger("transcribe_segment")
 
 
 def transcribe_segment_job(project_id, segment_id):
-    state = project_store.load_state(project_id)
-    if not state:
-        log.error("Proyecto %s no encontrado", project_id)
-        return
-
-    segment = (state.get("segments") or {}).get(segment_id)
+    segment = project_store.get_segment(project_id, segment_id)
     if not segment:
         log.error("Segmento %s no encontrado", segment_id)
         return
@@ -31,16 +26,5 @@ def transcribe_segment_job(project_id, segment_id):
         with open(text_path, "w", encoding="utf-8") as fh:
             fh.write(text)
 
-    segment["text"] = text
-    segment["transcription_time"] = elapsed
-    segment["status"] = "done"
-
-    segments = state.get("segments", {})
-    segments[segment_id] = segment
-
-    progress = state.get("progress", {})
-    progress["segments_done"] = progress.get("segments_done", 0) + 1
-    state["progress"] = progress
-    state["segments"] = segments
-    project_store.save_state(project_id, state)
+    project_store.update_segment_text(project_id, segment_id, text, elapsed)
     log.info("Segmento %s transcrito en %.2fs", segment_id, elapsed)

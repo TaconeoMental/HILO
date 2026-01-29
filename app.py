@@ -1,4 +1,5 @@
 import os
+import json
 import click
 
 from flask import Flask
@@ -7,6 +8,7 @@ from config import Config
 from extensions import init_extensions, login_manager, Session
 from routes import register_blueprints
 from models import User
+from services import project_store
 
 
 def create_app():
@@ -69,6 +71,23 @@ def register_cli(app):
             click.echo(f"Admin user '{username}' created successfully.")
         finally:
             Session.remove()
+
+    @app.cli.command("export-project")
+    @click.argument("project_id")
+    @click.option("--output", "output_path", type=click.Path(), help="Archivo de salida opcional")
+    def export_project(project_id, output_path):
+        """Exporta el estado del proyecto a JSON."""
+        data = project_store.export_project_state(project_id)
+        if not data:
+            click.echo("Proyecto no encontrado", err=True)
+            return
+        payload = json.dumps(data, indent=2, ensure_ascii=False)
+        if output_path:
+            with open(output_path, "w", encoding="utf-8") as fh:
+                fh.write(payload)
+            click.echo(f"Estado exportado a {output_path}")
+        else:
+            click.echo(payload)
 
 app = create_app()
 

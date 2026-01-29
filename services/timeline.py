@@ -1,62 +1,111 @@
-import os
-import json
-import threading
+import uuid
 
-from config import Config
+from sqlalchemy import update
 
-_lock = threading.Lock()
-
-
-def get_timeline_path(project_id):
-    return os.path.join(Config.DATA_DIR, "projects", project_id, "timeline.json")
+from extensions import Session
+from models import ProjectPhoto, ProjectState
+from services import project_store
 
 
-def load_timeline(project_id):
-    path = get_timeline_path(project_id)
-    if not os.path.exists(path):
-        return {"photos": []}
-    with _lock:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-
-
-def save_timeline(project_id, timeline):
-    path = get_timeline_path(project_id)
-    with _lock:
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(timeline, f, indent=2, ensure_ascii=False)
+def _to_uuid(value):
+    if isinstance(value, uuid.UUID):
+        return value
+    try:
+        return uuid.UUID(str(value))
+    except (ValueError, TypeError):
+        return None
 
 
 def add_photo(project_id, photo_id, t_ms, original_path, stylized_path=None):
-    timeline = load_timeline(project_id)
+    project_uuid = _to_uuid(project_id)
+    if not project_uuid:
+        raise ValueError("project_id inválido")
 
-    photo_entry = {
-        "photo_id": photo_id,
-        "t_ms": t_ms,
-        "original_path": original_path,
-        "stylized_path": stylized_path
-    }
+    session = Session()
+    try:
+        photo = ProjectPhoto(
+            project_id=project_uuid,
+            photo_id=photo_id,
+            t_ms=int(t_ms or 0),
+            original_path=original_path,
+            stylized_path=stylized_path
+        )
+        session.add(photo)
+        session.flush()
 
-    timeline["photos"].append(photo_entry)
-    timeline["photos"].sort(
-        key=lambda x: x.get("t_ms", 0)
-    )
+        session.execute(
+            update(ProjectState)
+            .where(ProjectState.project_id == project_uuid)
+            .values(photos_total=ProjectState.photos_total + 1)
+        )
+        session.commit()
+        project_store.invalidate_cache(project_id)
 
-    save_timeline(project_id, timeline)
-    return photo_entry
+        return {
+            "photo_id": photo_id,
+            "t_ms": int(t_ms or 0),
+            "original_path": original_path,
+            "stylized_path": stylized_path
+        }
+    finally:
+        Session.remove()
 
 
 def update_photo_stylized(project_id, photo_id, stylized_path):
-    timeline = load_timeline(project_id)
+    project_uuid = _to_uuid(project_id)
+    if not project_uuid:
+        raise ValueError("project_id inválido")
 
-    for photo in timeline["photos"]:
-        if photo["photo_id"] == photo_id:
-            photo["stylized_path"] = stylized_path
-            break
+    session = Session()
+    try:
+        photo = (
+            session.query(ProjectPhoto)
+            .filter_by(project_id=project_uuid, photo_id=photo_id)
+            .with_for_update()
+            .first()
+        )
+        if not photo:
+            session.rollback()
+            return False
 
-    save_timeline(project_id, timeline)
+        already_stylized = bool(photo.stylized_path)
+        photo.stylized_path = stylized_path
+
+        if stylized_path and not already_stylized:
+            session.execute(
+                update(ProjectState)
+                .where(ProjectState.project_id == project_uuid)
+                .values(photos_done=ProjectState.photos_done + 1)
+            )
+
+        session.commit()
+        project_store.invalidate_cache(project_id)
+        return True
+    finally:
+        Session.remove()
 
 
 def get_photos(project_id):
-    timeline = load_timeline(project_id)
-    return timeline.get("photos", [])
+    project_uuid = _to_uuid(project_id)
+    if not project_uuid:
+        return []
+
+    session = Session()
+    try:
+        photos = (
+            session.query(ProjectPhoto)
+            .filter_by(project_id=project_uuid)
+            .order_by(ProjectPhoto.t_ms.asc(), ProjectPhoto.id.asc())
+            .all()
+        )
+        return [
+            {
+                "photo_id": photo.photo_id,
+                "t_ms": photo.t_ms,
+                "original_path": photo.original_path,
+                "stylized_path": photo.stylized_path
+            }
+            for photo in photos
+        ]
+    finally:
+        Session.remove()
