@@ -32,6 +32,7 @@ export function useRecorder() {
   const [isStarting, setIsStarting] = useState(false);
   const isPausingRef = useRef(false);
   const [orientation, setOrientation] = useState("portrait");
+  const orientationUpdateTimeoutRef = useRef(null);
   const [chunkDuration, setChunkDuration] = useState(5);
   const chunkDurationRef = useRef(5);
   const [audioWsPath, setAudioWsPath] = useState("/ws/audio");
@@ -54,6 +55,11 @@ export function useRecorder() {
 
   const media = useMediaStreams();
   const quotas = useQuotas();
+
+  // Function to get current orientation for photo capture rotation
+  const getOrientation = useCallback(() => {
+    return orientation;
+  }, [orientation]);
 
   // Handler para cuando se alcanza la cuota (desde timer o desde servidor)
   const handleQuotaExceeded = useCallback(() => {
@@ -103,7 +109,8 @@ export function useRecorder() {
     videoRef,
     stylize: stylizePhotos,
     onQuotaExceeded: handleQuotaExceeded,
-    getElapsedMs
+    getElapsedMs,
+    getOrientation
   });
 
   // Mantener projectIdRef actualizada
@@ -115,16 +122,36 @@ export function useRecorder() {
   const canvasReady = false;
 
   const updateOrientation = useCallback(() => {
-    const isLandscape = window.matchMedia("(orientation: landscape)").matches;
-    if (!isLandscape) {
-      setOrientation("portrait");
-      return;
+    // Clear any pending orientation update to avoid rapid changes during rotation
+    if (orientationUpdateTimeoutRef.current) {
+      clearTimeout(orientationUpdateTimeoutRef.current);
     }
-    const angle = screen.orientation?.angle ?? window.orientation ?? 0;
-    const normalized = ((angle % 360) + 360) % 360;
-    if (normalized === 90) setOrientation("landscape-left");
-    else if (normalized === 270) setOrientation("landscape-right");
-    else setOrientation("landscape-left");
+    
+    // Throttle orientation updates for stable UI layout changes and photo rotation
+    orientationUpdateTimeoutRef.current = setTimeout(() => {
+      const isLandscape = window.matchMedia("(orientation: landscape)").matches;
+      if (!isLandscape) {
+        setOrientation("portrait");
+        return;
+      }
+      
+      // Get device orientation angle
+      const angle = screen.orientation?.angle ?? window.orientation ?? 0;
+      const normalized = ((angle % 360) + 360) % 360;
+      
+      // Detect landscape orientation for UI layout and photo capture rotation
+      if (normalized >= 45 && normalized <= 135) {
+        setOrientation("landscape-left");
+      } else if (normalized >= 225 && normalized <= 315) {
+        setOrientation("landscape-right");
+      } else if (normalized >= 0 && normalized <= 45 || normalized >= 315) {
+        // Device is close to portrait but media query says landscape - treat as portrait
+        setOrientation("portrait");
+      } else {
+        // Fallback to left when uncertain (between 135-225 degrees)
+        setOrientation("landscape-left");
+      }
+    }, 300); // Increased throttle to 300ms for stability during rapid rotations
   }, []);
 
   useEffect(() => {
@@ -134,6 +161,9 @@ export function useRecorder() {
     return () => {
       window.removeEventListener("orientationchange", updateOrientation);
       window.removeEventListener("resize", updateOrientation);
+      if (orientationUpdateTimeoutRef.current) {
+        clearTimeout(orientationUpdateTimeoutRef.current);
+      }
     };
   }, [updateOrientation]);
 
@@ -507,11 +537,12 @@ export function useRecorder() {
 
   const switchCamera = useCallback(async () => {
     try {
-      await media.switchCamera();
+      // Reset orientation detection when switching cameras for stability
+      await media.switchCamera(updateOrientation);
     } catch (err) {
       notify("No se pudo cambiar de cámara", "error");
     }
-  }, [media, notify]);
+  }, [media, notify, updateOrientation]);
 
   return {
     status: state.status,

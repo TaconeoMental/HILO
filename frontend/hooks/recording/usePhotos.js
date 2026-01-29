@@ -5,7 +5,8 @@ export function usePhotos({
   videoRef,
   stylize,
   onQuotaExceeded,
-  getElapsedMs
+  getElapsedMs,
+  getOrientation
 }) {
   const [photos, setPhotos] = useState([]);
   const [photoDelay, setPhotoDelay] = useState(0);
@@ -61,13 +62,52 @@ export function usePhotos({
       }
 
       const canvas = canvasRef.current;
-      canvas.width = video.videoWidth || 1280;
-      canvas.height = video.videoHeight || 720;
+      const vw = video.videoWidth || 1280;
+      const vh = video.videoHeight || 720;
+      
+      // Get current device orientation
+      const orientation = getOrientation ? getOrientation() : "portrait";
+      
+      // For landscape orientations, we need to rotate the captured photo
+      // since the video preview is always kept in portrait orientation
+      const shouldRotate = orientation.startsWith("landscape");
+      
+      if (shouldRotate) {
+        // Set canvas dimensions for rotated image (swap width/height)
+        canvas.width = vh;
+        canvas.height = vw;
+      } else {
+        // Portrait orientation - no rotation needed
+        canvas.width = vw;
+        canvas.height = vh;
+      }
+      
       const ctx = canvas.getContext("2d");
       if (!ctx) {
         throw new Error("No se pudo capturar la foto");
       }
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      if (shouldRotate) {
+        // Apply rotation to match device orientation
+        ctx.save();
+        
+        if (orientation === "landscape-left") {
+          // Rotate 90 degrees clockwise
+          ctx.translate(vh, 0);
+          ctx.rotate(Math.PI / 2);
+        } else if (orientation === "landscape-right") {
+          // Rotate 90 degrees counter-clockwise  
+          ctx.translate(0, vw);
+          ctx.rotate(-Math.PI / 2);
+        }
+        
+        // Draw the video with rotation applied
+        ctx.drawImage(video, 0, 0, vw, vh);
+        ctx.restore();
+      } else {
+        // No rotation needed for portrait
+        ctx.drawImage(video, 0, 0, vw, vh);
+      }
 
       const blob = await new Promise((resolve, reject) => {
         canvas.toBlob((result) => {
@@ -132,7 +172,7 @@ export function usePhotos({
         setCountdownValue(0);
       }
     }
-  }, [projectId, videoRef, getElapsedMs, onQuotaExceeded, stylize, stopCountdown, isCapturing]);
+   }, [projectId, videoRef, getElapsedMs, onQuotaExceeded, stylize, stopCountdown, isCapturing, getOrientation]);
 
   const capturePhoto = useCallback(() => {
     if (quotaExceededRef.current || countdownActive || isCapturing) {

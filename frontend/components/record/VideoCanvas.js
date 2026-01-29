@@ -113,37 +113,25 @@ export default React.memo(function VideoCanvas({
 
     const vw = video.videoWidth;
     const vh = video.videoHeight;
-    let rotation = 0;
-    if (orientation === "landscape-left") rotation = Math.PI / 2;
-    if (orientation === "landscape-right") rotation = -Math.PI / 2;
+
+    // Always maintain portrait orientation - no rotation applied to video
+    // Video will show with black bars when device is in landscape
+    const scale = Math.min(width / vw, height / vh);
+    const drawW = vw * scale;
+    const drawH = vh * scale;
+    const offsetX = (width - drawW) / 2;
+    const offsetY = (height - drawH) / 2;
 
     ctx.save();
-    if (rotation === Math.PI / 2) {
-      ctx.translate(width, 0);
-      ctx.rotate(rotation);
-    } else if (rotation === -Math.PI / 2) {
-      ctx.translate(0, height);
-      ctx.rotate(rotation);
-    }
-
-    const rotW = rotation === 0 ? vw : vh;
-    const rotH = rotation === 0 ? vh : vw;
-    const renderW = rotation === 0 ? width : height;
-    const renderH = rotation === 0 ? height : width;
-    const scale = Math.min(renderW / rotW, renderH / rotH);
-    const drawW = rotW * scale;
-    const drawH = rotH * scale;
-    const offsetX = (renderW - drawW) / 2;
-    const offsetY = (renderH - drawH) / 2;
-
     if (facingMode === "user") {
+      // Mirror horizontally for front camera
       ctx.translate(offsetX + drawW, offsetY);
       ctx.scale(-1, 1);
       ctx.drawImage(video, 0, 0, vw, vh, 0, 0, drawW, drawH);
     } else {
+      // No mirroring for rear camera
       ctx.drawImage(video, 0, 0, vw, vh, offsetX, offsetY, drawW, drawH);
     }
-
     ctx.restore();
     loopRef.current = requestAnimationFrame(draw);
   };
@@ -156,7 +144,18 @@ export default React.memo(function VideoCanvas({
     }
 
     const video = videoRef.current;
+    const canvas = canvasRef.current;
     const isMobile = window.matchMedia("(max-width: 1023px)").matches;
+
+    // Clear canvas when stream or orientation changes to prevent visual artifacts
+    if (canvas) {
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+    }
 
     const startLoop = () => {
       if (isDrawingRef.current) return;
@@ -191,7 +190,7 @@ export default React.memo(function VideoCanvas({
     return () => {
       stopLoop();
     };
-  }, [stream, facingMode, orientation]);
+  }, [stream, facingMode]); // Removed orientation dependency since video never rotates
 
   const mirrored = facingMode === "user";
 

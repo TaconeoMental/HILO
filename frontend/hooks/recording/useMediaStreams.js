@@ -37,7 +37,7 @@ export function useMediaStreams() {
     setStreamState(null);
   }, [setStreamState, stopTracks]);
 
-  const switchCamera = useCallback(async () => {
+  const switchCamera = useCallback(async (onOrientationReset) => {
     const currentStream = streamRef.current;
     if (!currentStream) return;
 
@@ -46,6 +46,11 @@ export function useMediaStreams() {
 
     stopTracks(currentStream);
     setFacingMode(nextFacing);
+
+    // Reset orientation state when switching cameras to prevent residual state
+    if (onOrientationReset) {
+      onOrientationReset();
+    }
 
     const newStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: nextFacing },
