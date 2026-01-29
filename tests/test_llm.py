@@ -66,7 +66,6 @@ def main():
         if not args.file and not args.stdin:
             return
 
-    # Leer transcripción
     if args.stdin:
         transcript = sys.stdin.read()
     elif args.file:

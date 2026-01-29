@@ -31,10 +31,6 @@ def is_valid_uuid(value):
         return False
 
 
-def generate_uuid():
-    return str(uuid.uuid4())
-
-
 def parse_data_url(data_url):
     """
     Parsea un data URL y retorna (header, bytes) o (None, None) si el formato

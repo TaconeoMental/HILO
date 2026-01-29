@@ -8,5 +8,6 @@ def get_redis():
     return Redis.from_url(Config.REDIS_URL)
 
 
-def get_queue():
-    return Queue(name=Config.RQ_QUEUE_NAME, connection=get_redis())
+def get_queue(name=None):
+    queue_name = name or Config.RQ_QUEUE_NAME
+    return Queue(name=queue_name, connection=get_redis())

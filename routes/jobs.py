@@ -32,14 +32,10 @@ def project_status(project_id):
         "output_file": record.output_file,
         "fallback_file": record.fallback_file,
         "project_name": state.get("project_name", record.title),
-        "participant_name": state.get("participant_name", "")
+        "participant_name": state.get("participant_name", ""),
+        "progress": state.get("progress", {}),
+        "processing_jobs": state.get("processing_jobs", {})
     })
-
-
-@jobs_bp.route("/api/job/<job_id>/status")
-@login_required
-def job_status(job_id):
-    return project_status(job_id)
 
 
 @jobs_bp.route("/r/<project_id>/download/<filename>")
@@ -52,7 +48,8 @@ def download_file(project_id, filename):
     if not record:
         return "No encontrado", 404
 
-    if record.expires_at and record.expires_at <= utcnow():
+    expires_at = record.expires_at
+    if expires_at is not None and expires_at <= utcnow():
         return "Proyecto expirado", 410
 
     safe_filename = os.path.basename(filename)
@@ -85,7 +82,8 @@ def project_preview(project_id):
     if not record:
         return jsonify({"ok": False, "error": "Proyecto no encontrado"}), 404
 
-    if record.expires_at and record.expires_at <= utcnow():
+    expires_at = record.expires_at
+    if expires_at is not None and expires_at <= utcnow():
         return jsonify({"ok": False, "error": "Proyecto expirado"}), 410
 
     project_dir = project_store.get_project_dir(project_id)
@@ -103,12 +101,6 @@ def project_preview(project_id):
         return jsonify({"ok": True, "html": html})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
-
-
-@jobs_bp.route("/api/job/<job_id>/preview")
-@login_required
-def job_preview(job_id):
-    return project_preview(job_id)
 
 
 def convert_script_to_html(content, project_id):

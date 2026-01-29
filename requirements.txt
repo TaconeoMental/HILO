@@ -15,10 +15,11 @@ werkzeug>=3.0.0
 flask-limiter>=3.5.0
 redis>=5.0.0
 rq>=1.16.0
+flask-sock>=0.7.0
+boto3>=1.34.0
 
 # Configuration
 python-dotenv>=1.0.0
 
 # AI/ML
 openai>=1.0.0
-openai-whisper

@@ -3,7 +3,6 @@ from openai import OpenAI
 
 _client = None
 
-
 # Singleton cliente OpenAI
 def get_openai_client():
     global _client

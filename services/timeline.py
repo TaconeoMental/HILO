@@ -38,7 +38,9 @@ def add_photo(project_id, photo_id, t_ms, original_path, stylized_path=None):
     }
 
     timeline["photos"].append(photo_entry)
-    timeline["photos"].sort(key=lambda x: x["t_ms"])
+    timeline["photos"].sort(
+        key=lambda x: x.get("t_ms", 0)
+    )
 
     save_timeline(project_id, timeline)
     return photo_entry

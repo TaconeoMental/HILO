@@ -23,12 +23,14 @@ def stylize_image(input_path, output_path):
 
     try:
         with open(input_path, "rb") as image_file:
+            log.info(f"Estilizando foto ID={input_path}")
             response = client.images.edit(
                 model="gpt-image-1",
                 image=image_file,
                 prompt=load_prompt("image_stylize"),
                 size="1024x1024"
             )
+            log.info(f"Fin de estilizado de foto ID={input_path}")
 
         if hasattr(response.data[0], 'b64_json') and response.data[0].b64_json:
             result_b64 = response.data[0].b64_json

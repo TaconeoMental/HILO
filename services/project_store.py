@@ -113,10 +113,24 @@ def create_project(
         "created_at": recording_started_at,
         "recording_started_at": recording_started_at,
         "recording_limit_seconds": None,
+        "chunk_duration_seconds": Config.AUDIO_CHUNK_SECONDS,
         "expires_at": expires_at.isoformat(),
         "stopped_at": None,
         "quota_reserved": quota_reserved,
-        "chunks": [],
+        "ingest": {
+            "chunks": [],
+            "duration_ms": 0,
+            "bytes_total": 0,
+            "last_seq": -1
+        },
+        "segments": {},
+        "processing_jobs": {},
+        "progress": {
+            "segments_total": 0,
+            "segments_done": 0,
+            "photos_total": 0,
+            "photos_done": 0
+        },
         "transcript": ""
     }
 
@@ -196,6 +210,62 @@ def update_state_fields(project_id, updates):
     return state
 
 
+def _init_ingest(state):
+    ingest = state.get("ingest")
+    if not ingest:
+        ingest = {
+            "chunks": [],
+            "duration_ms": 0,
+            "bytes_total": 0,
+            "last_seq": -1
+        }
+        state["ingest"] = ingest
+    return ingest
+
+
+def append_ingest_chunk(project_id, chunk_entry):
+    state = load_state(project_id)
+    if not state:
+        raise ValueError("Proyecto no encontrado")
+
+    ingest = _init_ingest(state)
+    ingest.setdefault("chunks", []).append(chunk_entry)
+    ingest["chunks"].sort(key=lambda c: c.get("seq", 0))
+    end_ms = chunk_entry.get("start_ms", 0) + chunk_entry.get("duration_ms", 0)
+    ingest["duration_ms"] = max(ingest.get("duration_ms", 0), end_ms)
+    ingest["bytes_total"] = ingest.get("bytes_total", 0) + chunk_entry.get("bytes", 0)
+    ingest["last_seq"] = max(ingest.get("last_seq", -1), chunk_entry.get("seq", 0))
+    save_state(project_id, state)
+    return ingest
+
+
+def get_ingest_data(project_id):
+    state = load_state(project_id)
+    if not state:
+        return {}
+    return state.get("ingest", {})
+
+
+def set_processing_jobs(project_id, jobs_dict):
+    state = load_state(project_id)
+    if not state:
+        return None
+    state["processing_jobs"] = jobs_dict
+    save_state(project_id, state)
+    return state
+
+
+def update_processing_jobs(project_id, updates):
+    state = load_state(project_id)
+    if not state:
+        return None
+    jobs = state.get("processing_jobs", {})
+    jobs.update(updates)
+    state["processing_jobs"] = jobs
+    save_state(project_id, state)
+    return jobs
+
+
 def _parse_state_datetime(value):
     if not value:
         return None
@@ -246,36 +316,6 @@ def set_quota_reserved(project_id, reserved=True):
     if not state:
         return None
     state["quota_reserved"] = bool(reserved)
-    save_state(project_id, state)
-    return state
-
-
-def append_chunk_result(project_id, chunk_index, webm_path, wav_path, text):
-    if not is_valid_project_id(project_id):
-        raise ValueError("Invalid project_id")
-
-    if is_project_stopped(project_id):
-        raise ValueError("Project is stopped (read-only)")
-
-    state = load_state(project_id)
-    if not state:
-        return None
-
-    chunk_info = {
-        "index": chunk_index,
-        "webm_path": webm_path,
-        "wav_path": wav_path,
-        "text": text
-    }
-
-    state["chunks"].append(chunk_info)
-
-    if text.strip():
-        if state["transcript"]:
-            state["transcript"] += " " + text.strip()
-        else:
-            state["transcript"] = text.strip()
-
     save_state(project_id, state)
     return state
 

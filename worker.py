@@ -15,7 +15,13 @@ def main():
         daemon=True
     )
     cleanup_thread.start()
-    worker = Worker([Config.RQ_QUEUE_NAME], connection=redis_conn)
+    queues = [
+        Config.RQ_AUDIO_QUEUE,
+        Config.RQ_TRANSCRIBE_QUEUE,
+        Config.RQ_PHOTO_QUEUE,
+        Config.RQ_LLM_QUEUE
+    ]
+    worker = Worker(queues, connection=redis_conn)
     worker.work()
 
 

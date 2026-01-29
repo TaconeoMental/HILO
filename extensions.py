@@ -2,6 +2,7 @@ from flask import jsonify, redirect, request
 from flask_login import LoginManager
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_sock import Sock
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 
@@ -17,9 +18,9 @@ Session = scoped_session(sessionmaker(bind=engine))
 
 # Login
 login_manager = LoginManager()
+sock = Sock()
 
 
-# Rate limiter (usa Redis en producción)
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=["200 per day", "500 per hour"],
@@ -42,6 +43,7 @@ def get_db():
 def init_extensions(app):
     login_manager.init_app(app)
     limiter.init_app(app)
+    sock.init_app(app)
 
     @login_manager.unauthorized_handler
     def unauthorized():

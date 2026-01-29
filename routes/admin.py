@@ -8,7 +8,7 @@ from flask_login import login_required, current_user
 from sqlalchemy import func, or_
 from sqlalchemy.orm import aliased
 
-from extensions import Session
+from extensions import Session, limiter
 from helpers import is_valid_uuid
 from logger import get_logger
 from models import (
@@ -69,6 +69,7 @@ def _list_active_sessions(db):
 
 
 @admin_bp.route("/api/admin/overview", methods=["GET"])
+@limiter.exempt
 @login_required
 @admin_required
 def admin_overview():
@@ -94,35 +95,35 @@ def admin_overview():
             .count()
         )
 
-        jobs_processing = (
-            db.query(Project)
-            .filter(Project.status.in_(["queued", "processing"]))
-            .count()
-        )
-        jobs_error = db.query(Project).filter(Project.status == "error").count()
-
-        images_processing = 0
-        processing_projects = (
+        active_projects = (
             db.query(Project)
             .filter(Project.status.in_(["queued", "processing"]))
             .all()
         )
-        for project in processing_projects:
+        projects_error = db.query(Project).filter(Project.status == "error").count()
+
+        segments_pending = 0
+        photos_pending = 0
+        for project in active_projects:
             project_id = str(project.id)
             state = project_store.load_state(project_id) or {}
-            if not state.get("stylize_photos", True):
-                continue
-            photos = timeline.get_photos(project_id)
-            for photo in photos:
-                if not photo.get("stylized_path"):
-                    images_processing += 1
+            segments = state.get("segments") or {}
+            for segment in segments.values():
+                if segment.get("status") != "done":
+                    segments_pending += 1
+            if state.get("stylize_photos", True):
+                photos = timeline.get_photos(project_id)
+                for photo in photos:
+                    if not photo.get("stylized_path"):
+                        photos_pending += 1
 
         return jsonify({
             "ok": True,
             "stats": {
-                "jobs_processing": jobs_processing,
-                "jobs_error": jobs_error,
-                "images_processing": images_processing
+                "projects_active": len(active_projects),
+                "projects_error": projects_error,
+                "segments_pending": segments_pending,
+                "photos_pending": photos_pending
             }
         })
     finally:
@@ -130,6 +131,7 @@ def admin_overview():
 
 
 @admin_bp.route("/api/admin/overview/projects-hourly", methods=["GET"])
+@limiter.exempt
 @login_required
 @admin_required
 def admin_projects_hourly():
@@ -189,6 +191,86 @@ def admin_projects_hourly():
             "hours": hours,
             "project_counts": project_counts,
             "photo_counts": photo_counts
+        })
+    finally:
+        Session.remove()
+
+
+@admin_bp.route("/api/admin/overview/processing-history", methods=["GET"])
+@limiter.exempt
+@login_required
+@admin_required
+def admin_processing_history():
+    db = Session()
+    try:
+        boundary_hours = 24
+        now = utcnow()
+        start = now - timedelta(hours=boundary_hours)
+
+        projects = (
+            db.query(Project)
+            .filter(Project.status == "done")
+            .filter(Project.updated_at >= start)
+            .all()
+        )
+
+        hourly_buckets = {}
+        for offset in range(boundary_hours):
+            bucket_time = start + timedelta(hours=offset)
+            key = bucket_time.strftime("%H:00")
+            hourly_buckets[key] = {
+                "total": [],
+                "transcription": [],
+                "stylize": []
+            }
+
+        for project in projects:
+            state = project_store.load_state(str(project.id)) or {}
+            metrics = state.get("processing_metrics")
+            if not metrics:
+                continue
+
+            updated_at = project.updated_at or now
+            key = updated_at.strftime("%H:00")
+            bucket = hourly_buckets.get(key)
+            if not bucket:
+                continue
+
+            bucket["total"].append(metrics.get("total_time", 0))
+            bucket["transcription"].append(metrics.get("avg_transcription_time", 0))
+            bucket["stylize"].append(metrics.get("avg_stylize_time", 0))
+
+        labels = []
+        pipeline_times = []
+        segment_times = []
+        photo_times = []
+
+        def _avg(values):
+            return round(sum(values) / len(values), 2) if values else 0.0
+
+        for offset in range(boundary_hours):
+            bucket_time = start + timedelta(hours=offset)
+            key = bucket_time.strftime("%H:00")
+            bucket = hourly_buckets[key]
+
+            labels.append(key)
+            pipeline_times.append(_avg(bucket["total"]))
+            segment_times.append(_avg(bucket["transcription"]))
+            photo_times.append(_avg(bucket["stylize"]))
+
+        date_info = {
+            "start": start.strftime("%Y-%m-%d %H:%M"),
+            "end": now.strftime("%Y-%m-%d %H:%M"),
+            "projects_count": len(projects)
+        }
+
+        return jsonify({
+            "ok": True,
+            "labels": labels,
+            "pipeline_times": pipeline_times,
+            "segment_times": segment_times,
+            "photo_times": photo_times,
+            "date_info": date_info
         })
     finally:
         Session.remove()

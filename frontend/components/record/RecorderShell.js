@@ -31,6 +31,14 @@ export default function RecorderShell() {
   const [toasts, setToasts] = useState([]);
   const [nameFlash, setNameFlash] = useState(false);
   const { setToastHandler } = recorder;
+  const desktopCaptureHandlerRef = useRef(null);
+
+  const handleDesktopStop = useCallback(async () => {
+    if (recorder.status === "recording") {
+      await recorder.pause();
+    }
+    recorder.requestStop();
+  }, [recorder.pause, recorder.requestStop, recorder.status]);
 
   // Handler para finalizar y navegar a proyectos
   const handleFinish = useCallback(async () => {
@@ -72,6 +80,11 @@ export default function RecorderShell() {
           target.tagName === "SELECT" ||
           target.isContentEditable)
       ) {
+        return;
+      }
+      if (desktopCaptureHandlerRef.current) {
+        event.preventDefault();
+        desktopCaptureHandlerRef.current();
         return;
       }
       if (recorder.canCapturePhoto) {
@@ -130,13 +143,16 @@ export default function RecorderShell() {
               status={recorder.status}
               onOpenSettings={recorder.toggleSettings}
               statusLabel={recorder.statusLabel}
+              registerCaptureHandler={(handler) => {
+                desktopCaptureHandlerRef.current = handler;
+              }}
             />
 
             <div className="shrink-0 rounded-2xl border border-bg-surface-light bg-bg-surface/60 p-4">
               <RecorderControls
                 status={recorder.status}
                 onStart={recorder.start}
-                onStop={recorder.requestStop}
+                onStop={handleDesktopStop}
                 onPause={recorder.pause}
                 onResume={recorder.resume}
                 projectName={recorder.projectName}

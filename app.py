@@ -13,16 +13,6 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    # Cabeceras de seguridad
-    # TODO: Implementar en rev proxy mejor??
-    @app.after_request
-    def set_security_headers(response):
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        return response
-
     init_extensions(app)
 
     @login_manager.user_loader

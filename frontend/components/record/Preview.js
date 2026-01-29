@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CameraIcon, ArrowPathIcon, Cog6ToothIcon } from "@heroicons/react/24/solid";
 import VideoCanvas from "./VideoCanvas";
 
@@ -19,7 +19,8 @@ export default function Preview({
   onParticipantNameChange,
   status,
   onOpenSettings,
-  statusLabel
+  statusLabel,
+  registerCaptureHandler
 }) {
   const isEditable = status === "stopped";
   const [isEditing, setIsEditing] = useState(false);
@@ -39,17 +40,23 @@ export default function Preview({
     }
   }, [isEditable]);
 
-  const handleCapture = () => {
+  const handleCapture = useCallback(() => {
     if (captureDisabled) return;
-    
+
     // Flash doble rapido: on-off-on-off en 300ms
     setFlash(true);
     setTimeout(() => setFlash(false), 75);
     setTimeout(() => setFlash(true), 150);
     setTimeout(() => setFlash(false), 225);
-    
+
     onCapturePhoto();
-  };
+  }, [captureDisabled, onCapturePhoto]);
+
+  useEffect(() => {
+    if (!registerCaptureHandler) return;
+    registerCaptureHandler(handleCapture);
+    return () => registerCaptureHandler(null);
+  }, [registerCaptureHandler, handleCapture]);
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden border border-bg-surface-light bg-black">

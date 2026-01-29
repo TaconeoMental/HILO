@@ -15,6 +15,10 @@ def health():
 @pages_bp.route("/api/config")
 @login_required
 def get_config():
+    chunk_seconds = Config.AUDIO_CHUNK_SECONDS
     return jsonify({
-        "chunk_duration": Config.CHUNK_DURATION
+        "chunk_duration": chunk_seconds,
+        "chunk_duration_seconds": chunk_seconds,
+        "chunk_duration_ms": chunk_seconds * 1000,
+        "audio_ws_path": Config.AUDIO_WS_PATH
     })

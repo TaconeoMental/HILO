@@ -4,6 +4,7 @@ from .pages import pages_bp
 from .projects import projects_bp
 from .media import media_bp
 from .jobs import jobs_bp
+from . import audio_ws  # noqa: F401
 
 
 def register_blueprints(app):
