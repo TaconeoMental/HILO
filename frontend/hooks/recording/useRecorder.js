@@ -123,11 +123,10 @@ export function useRecorder() {
   }, [media]);
 
   const getAudioStream = useCallback(() => {
-    const currentStream = media.getStream?.();
-    if (!currentStream) return null;
-    const audioTracks = currentStream.getAudioTracks();
-    if (audioTracks.length === 0) return null;
-    return new MediaStream(audioTracks);
+    const audioStream = media.getAudioStream?.();
+    if (!audioStream || !audioStream.active) return null;
+    if (audioStream.getAudioTracks().length === 0) return null;
+    return audioStream;
   }, [media]);
 
   const engine = useRecorderEngine({
