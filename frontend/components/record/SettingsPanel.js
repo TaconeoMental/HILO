@@ -1,6 +1,6 @@
 "use client";
 
-import { ClockIcon, SparklesIcon, UserIcon, XMarkIcon } from "@heroicons/react/24/solid";
+import { ClockIcon, SparklesIcon, UserIcon, XMarkIcon, RectangleStackIcon } from "@heroicons/react/24/solid";
 
 export default function SettingsPanel({
   open,
@@ -10,6 +10,8 @@ export default function SettingsPanel({
   stylize,
   stylizeAllowed = true,
   onStylizeToggle,
+  fullScreenMode,
+  onFullScreenToggle,
   onClose,
   participantName,
   onParticipantNameChange,
@@ -94,6 +96,29 @@ export default function SettingsPanel({
                   }`}
                 />
               </button>
+            </div>
+            {/* Detectar si estamos en móvil para mostrar toggle de pantalla completa */}
+            <div className="lg:hidden">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <RectangleStackIcon className="h-5 w-5 text-text-secondary" />
+                  <span className="text-sm text-text-secondary">Pantalla completa</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={onFullScreenToggle}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
+                    fullScreenMode ? "bg-accent" : "bg-bg-surface-light"
+                  }`}
+                  aria-pressed={fullScreenMode}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
+                      fullScreenMode ? "translate-x-5" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
         </div>
       </div>

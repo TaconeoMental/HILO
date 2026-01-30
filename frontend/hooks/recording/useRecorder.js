@@ -20,6 +20,7 @@ export function useRecorder() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [stylizePhotos, setStylizePhotos] = useState(true);
   const [stylizeAllowed, setStylizeAllowed] = useState(true);
+  const [fullScreenMode, setFullScreenMode] = useState(false);
   const [statusLabel, setStatusLabel] = useState("Detenido");
   const toastHandlerRef = useRef(null);
   const previewInitRef = useRef(false);
@@ -58,7 +59,39 @@ export function useRecorder() {
 
   // Function to get current orientation for photo capture rotation
   const getOrientation = useCallback(() => {
+    // Return the current detected orientation with additional validation
+    // This ensures we have the most up-to-date orientation state
     return orientation;
+  }, [orientation]);
+  
+  // Enhanced orientation detection with multiple fallbacks
+  const getOrientationRobust = useCallback(() => {
+    // Primary: Use our tracked orientation
+    if (orientation && orientation !== "portrait") {
+      return orientation;
+    }
+
+    // Fallback 1: Direct screen orientation API
+    if (screen.orientation?.angle !== undefined) {
+      const angle = screen.orientation.angle;
+      if (angle === 90) return "landscape-left";
+      if (angle === 270) return "landscape-right";
+      if (angle === 180) return "portrait"; // upside down, treat as portrait
+      return "portrait";
+    }
+    
+    // Fallback 2: Legacy window.orientation
+    if (typeof window !== 'undefined' && window.orientation !== undefined) {
+      const angle = window.orientation;
+      if (angle === 90) return "landscape-left";
+      if (angle === -90 || angle === 270) return "landscape-right";
+      return "portrait";
+    }
+    
+    // Fallback 3: Media query
+    const isLandscape = typeof window !== 'undefined' ? 
+      window.matchMedia("(orientation: landscape)").matches : false;
+    return isLandscape ? "landscape-left" : "portrait"; // Default to left if unsure
   }, [orientation]);
 
   // Handler para cuando se alcanza la cuota (desde timer o desde servidor)
@@ -110,7 +143,7 @@ export function useRecorder() {
     stylize: stylizePhotos,
     onQuotaExceeded: handleQuotaExceeded,
     getElapsedMs,
-    getOrientation
+    getOrientation: getOrientationRobust // Use robust version for photo capture
   });
 
   // Mantener projectIdRef actualizada
@@ -129,14 +162,17 @@ export function useRecorder() {
     
     // Throttle orientation updates for stable UI layout changes and photo rotation
     orientationUpdateTimeoutRef.current = setTimeout(() => {
-      const isLandscape = window.matchMedia("(orientation: landscape)").matches;
+      const isLandscape = typeof window !== 'undefined' ? 
+        window.matchMedia("(orientation: landscape)").matches : false;
       if (!isLandscape) {
         setOrientation("portrait");
         return;
       }
       
       // Get device orientation angle
-      const angle = screen.orientation?.angle ?? window.orientation ?? 0;
+      const angle = (typeof window !== 'undefined' && screen.orientation?.angle !== undefined) ? 
+        screen.orientation.angle : 
+        (typeof window !== 'undefined' ? (window.orientation ?? 0) : 0);
       const normalized = ((angle % 360) + 360) % 360;
       
       // Detect landscape orientation for UI layout and photo capture rotation
@@ -144,7 +180,10 @@ export function useRecorder() {
         setOrientation("landscape-left");
       } else if (normalized >= 225 && normalized <= 315) {
         setOrientation("landscape-right");
-      } else if (normalized >= 0 && normalized <= 45 || normalized >= 315) {
+      } else if (normalized === 180) {
+        // Treat upside-down portrait as portrait for photos/layout
+        setOrientation("portrait");
+      } else if ((normalized >= 0 && normalized <= 45) || normalized >= 315) {
         // Device is close to portrait but media query says landscape - treat as portrait
         setOrientation("portrait");
       } else {
@@ -156,11 +195,17 @@ export function useRecorder() {
 
   useEffect(() => {
     updateOrientation();
-    window.addEventListener("orientationchange", updateOrientation);
-    window.addEventListener("resize", updateOrientation);
+    
+    if (typeof window !== 'undefined') {
+      window.addEventListener("orientationchange", updateOrientation);
+      window.addEventListener("resize", updateOrientation);
+    }
+    
     return () => {
-      window.removeEventListener("orientationchange", updateOrientation);
-      window.removeEventListener("resize", updateOrientation);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener("orientationchange", updateOrientation);
+        window.removeEventListener("resize", updateOrientation);
+      }
       if (orientationUpdateTimeoutRef.current) {
         clearTimeout(orientationUpdateTimeoutRef.current);
       }
@@ -180,6 +225,10 @@ export function useRecorder() {
     if (savedStylize !== null) {
       setStylizePhotos(savedStylize === "true");
     }
+    const savedFullScreen = localStorage.getItem("hilo:fullScreen");
+    if (savedFullScreen !== null) {
+      setFullScreenMode(savedFullScreen === "true");
+    }
   }, []);
 
   useEffect(() => {
@@ -193,6 +242,10 @@ export function useRecorder() {
   useEffect(() => {
     localStorage.setItem("hilo:stylize", String(stylizePhotos));
   }, [stylizePhotos]);
+
+  useEffect(() => {
+    localStorage.setItem("hilo:fullScreen", String(fullScreenMode));
+  }, [fullScreenMode]);
 
   useEffect(() => {
     if (!stylizeAllowed && stylizePhotos) {
@@ -537,8 +590,23 @@ export function useRecorder() {
 
   const switchCamera = useCallback(async () => {
     try {
+      // Create a comprehensive reset function for camera transitions
+      const resetForCameraSwitch = () => {
+        // Clear any pending orientation updates
+        if (orientationUpdateTimeoutRef.current) {
+          clearTimeout(orientationUpdateTimeoutRef.current);
+          orientationUpdateTimeoutRef.current = null;
+        }
+        
+        // Force immediate re-detection of orientation
+        updateOrientation();
+        
+        // Trigger a small delay to allow VideoCanvas to reset properly
+        setTimeout(updateOrientation, 100);
+      };
+      
       // Reset orientation detection when switching cameras for stability
-      await media.switchCamera(updateOrientation);
+      await media.switchCamera(resetForCameraSwitch);
     } catch (err) {
       notify("No se pudo cambiar de cámara", "error");
     }
@@ -602,6 +670,8 @@ export function useRecorder() {
       if (!stylizeAllowed) return;
       setStylizePhotos((prev) => !prev);
     },
+    fullScreenMode,
+    toggleFullScreen: () => setFullScreenMode((prev) => !prev),
     // Video/Preview
     videoRef,
     canvasRef,

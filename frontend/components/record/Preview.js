@@ -9,6 +9,7 @@ export default function Preview({
   canvasRef,
   stream,
   facingMode,
+  fullScreenMode,
   showPreview,
   canvasReady,
   mirrored,
@@ -76,6 +77,7 @@ export default function Preview({
             facingMode={facingMode}
             orientation="portrait"
             fullScreen={false}
+            fullScreenMode={fullScreenMode}
             className="h-full w-full"
             videoRef={videoRef}
             canvasRef={canvasRef}

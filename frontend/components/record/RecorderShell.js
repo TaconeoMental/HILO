@@ -132,6 +132,7 @@ export default function RecorderShell() {
               canvasRef={recorder.canvasRef}
               stream={recorder.stream}
               facingMode={recorder.facingMode}
+              fullScreenMode={recorder.fullScreenMode}
               showPreview={recorder.showPreview}
               canvasReady={recorder.canvasReady}
               mirrored={recorder.isMirrored}
@@ -221,6 +222,8 @@ export default function RecorderShell() {
         stylize={recorder.stylizePhotos}
         stylizeAllowed={recorder.stylizeAllowed}
         onStylizeToggle={recorder.toggleStylize}
+        fullScreenMode={recorder.fullScreenMode}
+        onFullScreenToggle={recorder.toggleFullScreen}
         onClose={recorder.toggleSettings}
         participantName={recorder.participantName}
         onParticipantNameChange={recorder.setParticipantName}
@@ -413,6 +416,7 @@ function MobileRecorder({ recorder, className = "", nameFlash, setNameFlash }) {
       <div className="absolute inset-0">
         <VideoCanvas
           fullScreen
+          fullScreenMode={recorder.fullScreenMode}
           className="h-full w-full"
           stream={recorder.stream}
           facingMode={recorder.facingMode}

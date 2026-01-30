@@ -10,6 +10,7 @@ export default React.memo(function VideoCanvas({
   facingMode,
   orientation,
   fullScreen = false,
+  fullScreenMode = false,
   className = "",
   videoRef: externalVideoRef,
   canvasRef: externalCanvasRef
@@ -64,7 +65,7 @@ export default React.memo(function VideoCanvas({
       for (const entry of entries) {
         if (Date.now() < lockUntilRef.current) return;
         const rect = entry.contentRect;
-        const dpr = window.devicePixelRatio || 1;
+        const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
         const width = Math.max(1, Math.floor(rect.width));
         const height = Math.max(1, Math.floor(rect.height));
         sizeRef.current = { width, height, dpr };
@@ -115,8 +116,24 @@ export default React.memo(function VideoCanvas({
     const vh = video.videoHeight;
 
     // Always maintain portrait orientation - no rotation applied to video
-    // Video will show with black bars when device is in landscape
-    const scale = Math.min(width / vw, height / vh);
+    // Determine scaling behavior based on mobile state and user preference
+    const isMobile = typeof window !== 'undefined' ? 
+      window.matchMedia("(max-width: 1023px)").matches : false;
+      
+    let scale;
+    if (isMobile && fullScreen) {
+      if (fullScreenMode) {
+        // User wants full screen: fill entire height (may crop sides)
+        scale = Math.max(width / vw, height / vh);
+      } else {
+        // User wants to see full video: fit entire width (may show black bars)
+        scale = Math.min(width / vw, height / vh);
+      }
+    } else {
+      // Desktop mode: always fit content
+      scale = Math.min(width / vw, height / vh);
+    }
+    
     const drawW = vw * scale;
     const drawH = vh * scale;
     const offsetX = (width - drawW) / 2;
@@ -145,15 +162,20 @@ export default React.memo(function VideoCanvas({
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    const isMobile = window.matchMedia("(max-width: 1023px)").matches;
+    const isMobile = typeof window !== 'undefined' ? 
+      window.matchMedia("(max-width: 1023px)").matches : false;
 
-    // Clear canvas when stream or orientation changes to prevent visual artifacts
+    // Clear canvas when stream, facing mode, or fullScreenMode changes to prevent visual artifacts
     if (canvas) {
       const ctx = canvas.getContext("2d");
       if (ctx) {
+        // Complete canvas reset
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = "#000";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Reset any transformations that might be stuck
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
       }
     }
 
@@ -190,17 +212,30 @@ export default React.memo(function VideoCanvas({
     return () => {
       stopLoop();
     };
-  }, [stream, facingMode]); // Removed orientation dependency since video never rotates
+  }, [stream, facingMode, fullScreenMode]); 
 
   const mirrored = facingMode === "user";
+
+  // Determine effective display mode based on user preference
+  const isMobile = typeof window !== 'undefined' ? 
+    window.matchMedia("(max-width: 1023px)").matches : false;
+  const shouldFillScreen = isMobile && fullScreen && fullScreenMode;
+  const shouldFitContent = isMobile && fullScreen && !fullScreenMode;
+  
+  // Unified video element styling that respects user preference
+  const videoObjectFit = fullScreen 
+    ? (fullScreenMode ? "object-cover" : "object-contain")
+    : "object-contain";
 
   return (
     <div className={`${fullScreen ? "relative h-full w-full" : "relative"} ${className}`.trim()}>
       <video
         ref={videoRef}
-        className={`${fullScreen ? "absolute inset-0 h-full w-full" : "absolute inset-0 h-full w-full"} ${
-          fullScreen ? "object-cover" : "object-contain"
-        } ${mirrored ? "-scale-x-100" : ""}`}
+        className={`${fullScreen ? "absolute inset-0 h-full w-full" : "absolute inset-0 h-full w-full"} ${videoObjectFit} ${mirrored ? "-scale-x-100" : ""}`}
+        style={{
+          // Ensure video element respects the same logic as canvas
+          objectFit: shouldFillScreen ? 'cover' : 'contain'
+        }}
         autoPlay
         muted
         playsInline

@@ -64,50 +64,19 @@ export function usePhotos({
       const canvas = canvasRef.current;
       const vw = video.videoWidth || 1280;
       const vh = video.videoHeight || 720;
-      
-      // Get current device orientation
+
       const orientation = getOrientation ? getOrientation() : "portrait";
-      
-      // For landscape orientations, we need to rotate the captured photo
-      // since the video preview is always kept in portrait orientation
-      const shouldRotate = orientation.startsWith("landscape");
-      
-      if (shouldRotate) {
-        // Set canvas dimensions for rotated image (swap width/height)
-        canvas.width = vh;
-        canvas.height = vw;
-      } else {
-        // Portrait orientation - no rotation needed
-        canvas.width = vw;
-        canvas.height = vh;
-      }
-      
+
+      canvas.width = vw;
+      canvas.height = vh;
+
       const ctx = canvas.getContext("2d");
       if (!ctx) {
         throw new Error("No se pudo capturar la foto");
       }
-      
-      if (shouldRotate) {
-        // Apply rotation to match device orientation
-        ctx.save();
-        
-        if (orientation === "landscape-left") {
-          // Rotate 90 degrees clockwise
-          ctx.translate(vh, 0);
-          ctx.rotate(Math.PI / 2);
-        } else if (orientation === "landscape-right") {
-          // Rotate 90 degrees counter-clockwise  
-          ctx.translate(0, vw);
-          ctx.rotate(-Math.PI / 2);
-        }
-        
-        // Draw the video with rotation applied
-        ctx.drawImage(video, 0, 0, vw, vh);
-        ctx.restore();
-      } else {
-        // No rotation needed for portrait
-        ctx.drawImage(video, 0, 0, vw, vh);
-      }
+
+      ctx.clearRect(0, 0, vw, vh);
+      ctx.drawImage(video, 0, 0, vw, vh);
 
       const blob = await new Promise((resolve, reject) => {
         canvas.toBlob((result) => {
@@ -137,7 +106,8 @@ export function usePhotos({
           project_id: currentProjectId,
           photo_id: photoId,
           t_ms: timestamp,
-          data_url: dataUrl
+          data_url: dataUrl,
+          photo_orientation: orientation
         })
       });
 

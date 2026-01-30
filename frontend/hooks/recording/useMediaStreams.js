@@ -44,18 +44,27 @@ export function useMediaStreams() {
     const hasAudio = currentStream.getAudioTracks().length > 0;
     const nextFacing = facingMode === "user" ? "environment" : "user";
 
+    // Step 1: Stop current stream completely
     stopTracks(currentStream);
+    
+    // Step 2: Brief pause to ensure clean state transition
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    // Step 3: Update facing mode
     setFacingMode(nextFacing);
 
-    // Reset orientation state when switching cameras to prevent residual state
+    // Step 4: Reset orientation state to prevent residual state accumulation
     if (onOrientationReset) {
       onOrientationReset();
     }
 
+    // Step 5: Request new stream with clean configuration
     const newStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: nextFacing },
       audio: hasAudio
     });
+    
+    // Step 6: Set new stream and allow components to reset
     setStreamState(newStream);
     return newStream;
   }, [facingMode, setStreamState, stopTracks]);

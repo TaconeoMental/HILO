@@ -34,7 +34,8 @@ export function useRecorderEngine({
       const base = explicit.endsWith("/") ? explicit.slice(0, -1) : explicit;
       return `${base}${audioWsPath}`;
     }
-    const { protocol, host } = window.location;
+    const { protocol, host } = typeof window !== 'undefined' ? 
+      window.location : { protocol: 'https:', host: 'localhost:8000' };
     const wsProtocol = protocol === "https:" ? "wss:" : "ws:";
     return `${wsProtocol}//${host}${audioWsPath}`;
   }, [audioWsPath]);
