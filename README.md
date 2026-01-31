@@ -1,3 +1,3 @@
-# HILO (Herramienta de Improvisación y Libreto Oral)
+# Kiroku
 
 Aplicación para grabar y transcribir sesiones de video, generando guiones con IA.

@@ -12,8 +12,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "HILO",
-  description: "HILO"
+  title: "Kiroku",
+  description: "Kiroku"
 };
 
 export const viewport = {

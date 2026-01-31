@@ -19,7 +19,7 @@ class ColorFormatter(logging.Formatter):
         return super().format(record)
 
 
-def setup_logger(name="hilo", level=logging.INFO):
+def setup_logger(name="kiroku", level=logging.INFO):
     logger = logging.getLogger(name)
 
     if logger.handlers:
@@ -43,4 +43,4 @@ log = setup_logger(level=logging.DEBUG)
 
 
 def get_logger(name):
-    return logging.getLogger(f"hilo.{name}")
+    return logging.getLogger(f"kiroku.{name}")

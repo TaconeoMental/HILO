@@ -212,38 +212,38 @@ export function useRecorder() {
   }, [updateOrientation]);
 
   useEffect(() => {
-    const savedName = localStorage.getItem("hilo:name");
+    const savedName = localStorage.getItem("kiroku:name");
     if (savedName) {
       setParticipantName(savedName);
     }
-    const savedDelay = localStorage.getItem("hilo:photoDelay");
+    const savedDelay = localStorage.getItem("kiroku:photoDelay");
     if (savedDelay) {
       photos.setPhotoDelay(Number(savedDelay));
     }
-    const savedStylize = localStorage.getItem("hilo:stylize");
+    const savedStylize = localStorage.getItem("kiroku:stylize");
     if (savedStylize !== null) {
       setStylizePhotos(savedStylize === "true");
     }
-    const savedFullScreen = localStorage.getItem("hilo:fullScreen");
+    const savedFullScreen = localStorage.getItem("kiroku:fullScreen");
     if (savedFullScreen !== null) {
       setFullScreenMode(savedFullScreen === "true");
     }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("hilo:name", participantName);
+    localStorage.setItem("kiroku:name", participantName);
   }, [participantName]);
 
   useEffect(() => {
-    localStorage.setItem("hilo:photoDelay", String(photos.photoDelay));
+    localStorage.setItem("kiroku:photoDelay", String(photos.photoDelay));
   }, [photos.photoDelay]);
 
   useEffect(() => {
-    localStorage.setItem("hilo:stylize", String(stylizePhotos));
+    localStorage.setItem("kiroku:stylize", String(stylizePhotos));
   }, [stylizePhotos]);
 
   useEffect(() => {
-    localStorage.setItem("hilo:fullScreen", String(fullScreenMode));
+    localStorage.setItem("kiroku:fullScreen", String(fullScreenMode));
   }, [fullScreenMode]);
 
   useEffect(() => {

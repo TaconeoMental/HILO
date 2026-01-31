@@ -5,11 +5,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def _build_database_url():
-    user = os.getenv("POSTGRES_USER", "hilo")
-    password = os.getenv("POSTGRES_PASSWORD", "hilo.pass")
+    user = os.getenv("POSTGRES_USER", "kiroku")
+    password = os.getenv("POSTGRES_PASSWORD", "kiroku.pass")
     host = os.getenv("POSTGRES_HOST", "db")
     port = os.getenv("POSTGRES_PORT", "5432")
-    database = os.getenv("POSTGRES_DB", "hilo")
+    database = os.getenv("POSTGRES_DB", "kiroku")
 
     return (
         f"postgresql+psycopg://{user}:{password}@{host}:{port}/{database}"
@@ -24,10 +24,10 @@ class Config:
 
     REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 
-    RQ_AUDIO_QUEUE = os.getenv("RQ_AUDIO_QUEUE", "hilo_audio")
-    RQ_TRANSCRIBE_QUEUE = os.getenv("RQ_TRANSCRIBE_QUEUE", "hilo_transcribe")
-    RQ_PHOTO_QUEUE = os.getenv("RQ_PHOTO_QUEUE", "hilo_photos")
-    RQ_LLM_QUEUE = os.getenv("RQ_LLM_QUEUE", "hilo_llm")
+    RQ_AUDIO_QUEUE = os.getenv("RQ_AUDIO_QUEUE", "kiroku_audio")
+    RQ_TRANSCRIBE_QUEUE = os.getenv("RQ_TRANSCRIBE_QUEUE", "kiroku_transcribe")
+    RQ_PHOTO_QUEUE = os.getenv("RQ_PHOTO_QUEUE", "kiroku_photos")
+    RQ_LLM_QUEUE = os.getenv("RQ_LLM_QUEUE", "kiroku_llm")
     RQ_QUEUE_NAME = os.getenv("RQ_QUEUE_NAME", RQ_LLM_QUEUE)
     WORKERS_AUDIO = int(os.getenv("WORKERS_AUDIO", "1"))
     WORKERS_TRANSCRIBE = int(os.getenv("WORKERS_TRANSCRIBE", "1"))
