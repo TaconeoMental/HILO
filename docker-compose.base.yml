@@ -69,6 +69,16 @@ services:
     <<: *worker_base
     command: python worker.py --queues ${RQ_LLM_QUEUE}
 
+  nginx:
+    image: nginx:1.27-alpine
+    depends_on:
+      frontend:
+        condition: service_started
+      backend:
+        condition: service_healthy
+    networks:
+      - internal_net
+
 volumes:
   postgres_data:
   redis_data:

@@ -47,6 +47,8 @@ compose_args() {
     files+=(-f "$ROOT_DIR/docker-compose.prod.yml")
     if [[ "$APP_EXPOSURE" == "edge" ]]; then
       files+=(-f "$ROOT_DIR/docker-compose.edge.yml")
+    else
+      files+=(-f "$ROOT_DIR/docker-compose.public.yml")
     fi
   fi
 
