@@ -1,4 +1,10 @@
-x-worker-dev: &worker_dev
+x-backend-dev: &backend_dev
+  build:
+    context: ./backend
+    args:
+      APP_UID: 1000
+      APP_GID: 1000
+  user: "1000:1000"
   volumes:
     - ./backend:/app
     - /app/.venv
@@ -7,25 +13,23 @@ x-worker-dev: &worker_dev
 
 services:
   backend:
-    volumes:
-      - ./backend:/app
-      - /app/.venv
+    <<: *backend_dev
     environment:
       - FLASK_ENV=development
       - FLASK_DEBUG=1
     command: flask run --host=0.0.0.0 --port=8000 --reload --debug
 
   worker-prepare:
-    <<: *worker_dev
+    <<: *backend_dev
 
   worker-transcribe:
-    <<: *worker_dev
+    <<: *backend_dev
 
   worker-photos:
-    <<: *worker_dev
+    <<: *backend_dev
 
   worker-llm:
-    <<: *worker_dev
+    <<: *backend_dev
 
   db:
     ports:
