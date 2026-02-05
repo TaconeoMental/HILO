@@ -11,7 +11,11 @@ from extensions import Session
 from models import utcnow, log_audit_for_request, UserTag, ProjectTag, Project
 from services import quotas
 from services.cleanup import cleanup_on_project_delete
+from logger import get_logger
 from config import Config
+
+
+log = get_logger("projects")
 
 
 projects_bp = Blueprint('projects', __name__)
@@ -104,6 +108,7 @@ def project_start():
             "stylize_allowed": stylize_allowed
         })
     except Exception as e:
+        log.error("Error comenzando proyecto %: %", project_id, str(e))
         return jsonify({"ok": False, "error": "Error comenzando proyecto"}), 500
 
 

@@ -2,7 +2,7 @@ x-worker-prod: &worker_prod
   environment:
     - FLASK_ENV=production
   volumes:
-    - ./data:/app/data
+    - appdata:/app/data
   restart: unless-stopped
 
 services:
@@ -10,7 +10,7 @@ services:
     environment:
     - FLASK_ENV=production
     volumes:
-    - ./data:/app/data
+    - appdata:/app/data
     command: gunicorn --bind 0.0.0.0:8000 --workers 4 --threads 2 --timeout 120 --access-logfile - --error-logfile - app:app
     restart: unless-stopped
 
@@ -51,3 +51,6 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+
+volumes:
+  appdata
