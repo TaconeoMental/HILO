@@ -82,6 +82,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  appdata:
 
 networks:
   internal_net:
