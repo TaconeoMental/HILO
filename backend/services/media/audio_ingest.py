@@ -147,7 +147,7 @@ def handle_websocket(ws):
                 raise AudioStreamError("tipo no soportado")
     except AudioStreamError as e:
         log.warning("Audio WS error: %s", e)
-        _send(ws, {"type": "error", "error": str(e)})
+        _send(ws, {"type": "error", "Error interno"})
     except Exception as e:
         log.error("Audio WS excepción: %s", e)
         _send(ws, {"type": "error", "error": "Error interno"})

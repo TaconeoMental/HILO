@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import cast
 
 from sqlalchemy import update
+from sqlalchemy import update, func
 
 from config import Config
 from extensions import Session
