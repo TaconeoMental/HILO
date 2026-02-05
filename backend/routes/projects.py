@@ -108,7 +108,7 @@ def project_start():
             "stylize_allowed": stylize_allowed
         })
     except Exception as e:
-        log.error("Error comenzando proyecto %: %", project_id, str(e))
+        log.error("Error comenzando proyecto: %", str(e))
         return jsonify({"ok": False, "error": "Error comenzando proyecto"}), 500
 
 
