@@ -1,12 +1,10 @@
 import { redirect } from "next/navigation";
 import ChangePasswordForm from "@/components/Auth/ChangePasswordForm";
-import { isAuthenticated } from "@/lib/auth";
+import { getUser } from "@/lib/auth";
 
 export default async function ChangePasswordPage() {
-  const authed = await isAuthenticated();
-  if (!authed) {
-    redirect("/login");
-  }
+  const user = await getUser();
+  if (!user) redirect("/login");
 
   return (
     <div className="flex min-h-screen items-center justify-center px-6 py-12">
@@ -18,14 +16,16 @@ export default async function ChangePasswordPage() {
         <div className="mt-8">
           <ChangePasswordForm />
         </div>
-        <div className="mt-4">
-          <a
-            href="/projects"
-            className="flex w-full items-center justify-center rounded-lg border border-bg-surface-light px-4 py-3 text-sm font-semibold text-text-secondary hover:border-accent"
-          >
-            Cancelar
-          </a>
-        </div>
+        {!user.must_change_password && (
+          <div className="mt-4">
+            <a
+              href="/projects"
+              className="flex w-full items-center justify-center rounded-lg border border-bg-surface-light px-4 py-3 text-sm font-semibold text-text-secondary hover:border-accent"
+            >
+              Cancelar
+            </a>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -7,6 +7,9 @@ export default async function AdminPage() {
   if (!user) {
     redirect("/login");
   }
+  if (user.must_change_password) {
+    redirect("/change-password");
+  }
   if (!user.is_admin) {
     redirect("/projects");
   }

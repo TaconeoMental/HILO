@@ -1,12 +1,11 @@
 import { redirect } from "next/navigation";
 import LoginForm from "@/components/Auth/LoginForm";
-import { isAuthenticated } from "@/lib/auth";
+import { getUser } from "@/lib/auth";
 
 export default async function LoginPage() {
-  const authed = await isAuthenticated();
-  if (authed) {
-    redirect("/projects");
-  }
+  const user = await getUser();
+  if (user?.must_change_password) redirect("/change-password");
+  if (user) redirect("/projects");
 
   return (
     <div className="flex min-h-screen items-center justify-center px-6 py-12">

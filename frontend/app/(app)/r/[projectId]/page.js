@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { isAuthenticated } from "@/lib/auth";
+import { getUser } from "@/lib/auth";
 import { fetchServerApi } from "@/lib/serverApi";
 import ResultClient from "@/components/Results/ResultClient";
 
@@ -44,10 +44,9 @@ async function fetchStatus(projectId) {
 }
 
 export default async function ResultPage({ params }) {
-  const authed = await isAuthenticated();
-  if (!authed) {
-    redirect("/login");
-  }
+  const user = await getUser();
+  if (!user) redirect("/login");
+  if (user.must_change_password) redirect("/change-password");
 
   const { projectId } = await params;
   const status = await fetchStatus(projectId);

@@ -53,8 +53,13 @@ def register_auth_hooks(app):
             return None
 
         if hasattr(current_user, 'must_change_password') and current_user.must_change_password:
-            allowed = ['auth.api_change_password', 'auth.api_logout',
-                      'pages.health', 'static']
+            allowed = [
+                'auth.api_change_password',
+                'auth.api_logout',
+                'auth.api_me',
+                'pages.health',
+                'static'
+            ]
             if request.endpoint not in allowed:
                 if request.path.startswith("/api/"): # medio casero
                     return jsonify({
