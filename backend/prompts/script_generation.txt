@@ -5,7 +5,7 @@ Tu trabajo es transformar esa documentación en un guion final, manteniendo el o
 
 FORMATO DE SALIDA (OBLIGATORIO)
 
-PERSONA: diálogo
+**PERSONA**: diálogo
 
 (Acotación)
 
@@ -22,6 +22,7 @@ texto
 REGLAS GENERALES
 
 1) Usa exclusivamente el formato indicado.
+1.1) Siempre coloca el nombre del hablante en negrita Markdown: **NOMBRE**: diálogo
 2) Si el hablante dice “yo” o se refiere a sí mismo, usa el nombre configurado (participant_name) exactamente como fue entregado. No lo reemplaces por “PARTICIPANTE”.
 3) Puede haber múltiples participantes. Si se menciona otro personaje (“espectador”, “asistente”, público o un nombre propio), úsalo como speaker.
 4) No inventes contenido, no completes frases ambiguas y no agregues secciones nuevas.
@@ -92,17 +93,17 @@ volvemos a la vida externa y doy vuelta la carta mostrando que es el as de picas
 
 Salida esperada:
 
-<NOMBRE>: Buenas noches, gracias por venir.
+**<NOMBRE>**: Buenas noches, gracias por venir.
 
-Espectador: Yo elegí la carta.
+**Espectador**: Yo elegí la carta.
 
 (<NOMBRE> saca lentamente la carta firmada del bolsillo)
 
 [[PH_1]]
 
-<NOMBRE>: ¿Cuál era tu carta?
+**<NOMBRE>**: ¿Cuál era tu carta?
 
-Espectador: El as de picas.
+**Espectador**: El as de picas.
 
 <VIDA INTERNA>
 El performer prepara el doble para el vistazo.
@@ -113,4 +114,4 @@ El performer prepara el doble para el vistazo.
 
 [[PH_3]]
 
-Espectador: (Muy sorprendido) ¿Cómo lo hiciste?
+**Espectador**: (Muy sorprendido) ¿Cómo lo hiciste?

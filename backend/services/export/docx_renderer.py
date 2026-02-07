@@ -1,12 +1,31 @@
 import os
 import io
 
+import re
+
 from docx import Document
 from docx.shared import Inches, Pt, RGBColor
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 from services.export.script_parser import parse_script
+
+
+STRONG_RE = re.compile(r"\*\*(.+?)\*\*")
+
+
+def _add_markdown_runs(paragraph, text):
+    text = text or ""
+    last = 0
+    for match in STRONG_RE.finditer(text):
+        start, end = match.span()
+        if start > last:
+            paragraph.add_run(text[last:start])
+        bold_run = paragraph.add_run(match.group(1))
+        bold_run.font.bold = True
+        last = end
+    if last < len(text):
+        paragraph.add_run(text[last:])
 
 
 def _add_vida_table(doc, blocks, project_dir):
@@ -34,7 +53,7 @@ def _add_vida_table(doc, blocks, project_dir):
                 para = cell.add_paragraph()
                 para.paragraph_format.space_before = Pt(0)
                 para.paragraph_format.space_after = Pt(0)
-                para.add_run(line)
+                _add_markdown_runs(para, line)
         elif b_type == "image":
             img_rel = os.path.basename(block.get("src", "") or "")
             if not img_rel:
@@ -59,6 +78,8 @@ def _add_vida_table(doc, blocks, project_dir):
 
 def render_docx_bytes(content, project_id, project_dir):
     doc = Document()
+    normal_style = doc.styles["Normal"]
+    normal_style.font.size = Pt(12)
     nodes = parse_script(content)
     prev_blank = False
 
@@ -76,7 +97,8 @@ def render_docx_bytes(content, project_id, project_dir):
 
         if n_type == "heading":
             level = node.get("level", 1)
-            para = doc.add_heading(node.get("text", ""), level=level)
+            para = doc.add_heading("", level=level)
+            _add_markdown_runs(para, node.get("text", ""))
             para.paragraph_format.space_after = Pt(0)
             continue
 
@@ -86,7 +108,8 @@ def render_docx_bytes(content, project_id, project_dir):
             continue
 
         if n_type == "paragraph":
-            para = doc.add_paragraph(node.get("text", ""))
+            para = doc.add_paragraph()
+            _add_markdown_runs(para, node.get("text", ""))
             para.paragraph_format.space_before = Pt(0)
             para.paragraph_format.space_after = Pt(0)
             continue

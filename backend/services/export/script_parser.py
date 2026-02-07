@@ -175,11 +175,11 @@ def render_nodes_to_html(nodes, project_dir, embed_images=False):
             text = html_lib.escape(node.get("text", ""))
             if level == 1:
                 html_parts.append(
-                    f'<h1 style="text-align: center; margin: 0 0 0.5em 0; font-size: 24px;">{text}</h1>'
+                    f'<h1 style="text-align: center; margin: 0 0 0.5em 0; font-size: 26px;">{text}</h1>'
                 )
             else:
                 html_parts.append(
-                    f'<h2 style="margin: 1em 0 0.5em 0; font-size: 18px;">{text}</h2>'
+                    f'<h2 style="margin: 1em 0 0.5em 0; font-size: 20px;">{text}</h2>'
                 )
             continue
 
@@ -199,13 +199,13 @@ def render_nodes_to_html(nodes, project_dir, embed_images=False):
                     vida_html_parts.append(_safe_image_tag(block.get("src", ""), photos_dir, embed_images))
                 elif b_type == "paragraph":
                     vida_html_parts.append(
-                        f'<div style="margin: 0 0 0.75em 0; font-size: 14px; line-height: 1.6; color: #000; white-space: pre-wrap;">{_render_multiline(block.get("text", ""))}</div>'
+                        f'<div style="margin: 0 0 0.75em 0; font-size: 16px; line-height: 1.7; color: #000; white-space: pre-wrap;">{_render_multiline(block.get("text", ""))}</div>'
                     )
             inner_html = "".join(vida_html_parts)
             html_parts.append(
                 '<div style="border: 1px solid #111; background: #fff; border-radius: 16px; padding: 16px;">'
-                '<p style="margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(0,0,0,0.7);">Vida interna</p>'
-                f'<div style="margin-top: 8px; font-size: 14px; line-height: 1.6; color: #000;">{inner_html}</div>'
+                '<p style="margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(0,0,0,0.7);">Vida interna</p>'
+                f'<div style="margin-top: 8px; font-size: 16px; line-height: 1.7; color: #000;">{inner_html}</div>'
                 '</div>'
             )
             continue
@@ -213,7 +213,7 @@ def render_nodes_to_html(nodes, project_dir, embed_images=False):
         if n_type == "paragraph":
             text_html = _render_text(node.get("text", ""))
             html_parts.append(
-                f'<div style="margin: 0; font-size: 14px; line-height: 1.6; color: #000; white-space: pre-wrap;">{text_html}</div>'
+                f'<div style="margin: 0; font-size: 16px; line-height: 1.7; color: #000; white-space: pre-wrap;">{text_html}</div>'
             )
             continue
 
